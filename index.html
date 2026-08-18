@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="おかえりクエスト">
+<meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" sizes="180x180" href="icon.png">
+<title>おかえりクエスト</title>
+<style>
+/* iOS 10.3 Safari (WebKit 603) 互換範囲のみ使用: flex gap・CSS変数・inset・grid は使わない */
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:rgba(0,0,0,0); }
+html,body { height:100%; }
+body {
+  font-family:"Hiragino Maru Gothic ProN","Hiragino Kaku Gothic ProN",sans-serif;
+  background:#FFF9E8; color:#3a3a3a; overflow:hidden;
+}
+button { font-family:inherit; }
+
+.screen {
+  position:absolute; top:0; left:0; right:0; bottom:0;
+  overflow-y:auto; -webkit-overflow-scrolling:touch;
+  display:none; padding:16px 14px 60px;
+}
+.screen.on { display:block; }
+
+.hd { text-align:center; margin-bottom:10px; }
+.hd-date { font-size:15px; color:#777; }
+.hd-title { font-size:26px; color:#0072B2; margin:2px 0 4px; }
+.hd-progress { font-size:18px; min-height:26px; letter-spacing:2px; }
+
+.cards { display:-webkit-flex; display:flex; -webkit-flex-wrap:wrap; flex-wrap:wrap; -webkit-justify-content:center; justify-content:center; }
+.card {
+  position:relative; width:46%; margin:2%;
+  background:#fff; border:3px solid #56B4E9; border-radius:22px;
+  padding:14px 8px 12px; text-align:center;
+  box-shadow:0 3px 0 rgba(86,180,233,0.35);
+  cursor:pointer;
+}
+.card .c-emoji { font-size:44px; line-height:1.2; }
+.card .c-text { font-size:19px; font-weight:bold; margin-top:6px; line-height:1.35; }
+.card.done { border-color:#E69F00; background:#FFF6DC; box-shadow:0 3px 0 rgba(230,159,0,0.35); }
+.card.done .c-text { color:#8a6d00; }
+.card .c-stamp {
+  display:none; position:absolute; top:-12px; right:-8px;
+  font-size:46px;
+  text-shadow:0 1px 2px rgba(0,0,0,0.15);
+}
+.card.done .c-stamp { display:block; }
+.card.pop .c-stamp { -webkit-animation:pop 0.5s ease-out; animation:pop 0.5s ease-out; }
+@-webkit-keyframes pop { 0%{-webkit-transform:scale(0);} 60%{-webkit-transform:scale(1.5) rotate(-12deg);} 100%{-webkit-transform:scale(1) rotate(0);} }
+@keyframes pop { 0%{transform:scale(0);} 60%{transform:scale(1.5) rotate(-12deg);} 100%{transform:scale(1) rotate(0);} }
+
+.bigBtn {
+  display:inline-block; border:0; border-radius:999px;
+  background:#0072B2; color:#fff; font-size:23px; font-weight:bold;
+  padding:16px 34px; margin:8px 6px 0; cursor:pointer;
+  box-shadow:0 4px 0 #005a8e;
+}
+.bigBtn:active { -webkit-transform:translateY(3px); transform:translateY(3px); box-shadow:0 1px 0 #005a8e; }
+.bigBtn.gray { background:#9b9b9b; box-shadow:0 4px 0 #767676; }
+.bigBtn.orange { background:#E69F00; box-shadow:0 4px 0 #b57d00; }
+.miniBtn {
+  border:2px solid #bbb; background:#fff; color:#888;
+  border-radius:12px; font-size:14px; padding:6px 12px; cursor:pointer;
+}
+.note { font-size:14px; color:#888; line-height:1.6; }
+
+/* 動画画面 */
+.v-head { display:-webkit-flex; display:flex; -webkit-justify-content:space-between; justify-content:space-between; -webkit-align-items:center; align-items:center; }
+.v-title { font-size:24px; color:#0072B2; font-weight:bold; }
+.v-timer { margin:10px 0 12px; }
+.v-bar { height:22px; background:#eee; border-radius:11px; overflow:hidden; border:2px solid #ddd; }
+.v-fill { height:100%; background:#56B4E9; border-radius:9px; }
+.v-remain { text-align:center; font-size:34px; font-weight:bold; color:#0072B2; margin-top:6px; }
+.v-center { text-align:center; padding:30px 10px; }
+#vidBox { text-align:center; }
+#vidBox iframe { width:100%; height:390px; max-height:56vh; border:0; border-radius:12px; background:#000; }
+
+/* 花丸・お祝い */
+.ov {
+  display:none; position:fixed; top:0; left:0; right:0; bottom:0;
+  background:rgba(255,251,235,0.97); z-index:50;
+  overflow-y:auto; -webkit-overflow-scrolling:touch;
+}
+.ov.on { display:block; }
+.ov-inner { text-align:center; padding:40px 20px 60px; }
+.ov-inner.small { padding-top:110px; }
+.ov-inner h1 { font-size:34px; color:#D55E00; margin:8px 0; }
+.ov-inner .lines { font-size:21px; line-height:1.8; margin:6px 0 10px; }
+.ov-inner .lines .bonus { color:#0072B2; font-weight:bold; }
+.svgWrap svg { width:230px; height:230px; }
+.celebEmoji { font-size:96px; line-height:1.2; }
+#cfMsg { font-size:22px; line-height:1.7; margin-bottom:10px; }
+.row { text-align:center; }
+
+/* おやすみ画面 */
+#scrNight { background:#2b3a55; color:#fff; }
+#scrNight .n-center { text-align:center; padding-top:60px; }
+#scrNight h1 { font-size:27px; margin:14px 0 8px; color:#F0E442; }
+#scrNight p { font-size:22px; }
+
+/* 設定 */
+#btnGear {
+  position:fixed; top:10px; right:10px; z-index:40;
+  border:0; background:transparent; font-size:26px; opacity:0.45; cursor:pointer;
+}
+.ov-panel {
+  max-width:560px; margin:20px auto; background:#fff;
+  border-radius:16px; padding:20px 18px 30px; text-align:left;
+  box-shadow:0 4px 20px rgba(0,0,0,0.15);
+}
+.ov-panel h2 { color:#0072B2; font-size:21px; margin-bottom:10px; }
+.ov-panel h3 { color:#0072B2; font-size:17px; margin:16px 0 6px; }
+.ov-panel label { display:block; font-size:15px; margin:12px 0 4px; color:#555; }
+.ov-panel textarea, .ov-panel input[type=text], .ov-panel input[type=number] {
+  width:100%; font-size:16px; padding:8px; border:2px solid #ccc; border-radius:8px;
+  font-family:inherit;
+}
+.ov-panel input[type=number] { width:90px; }
+.ov-panel .chk { font-size:16px; color:#333; }
+.ov-panel .chk input { width:auto; margin-right:6px; }
+.grid2 label, .grid3 label { display:inline-block; margin-right:14px; }
+.setBtn {
+  border:2px solid #CC79A7; color:#CC79A7; background:#fff;
+  border-radius:10px; font-size:15px; padding:9px 14px; margin:6px 6px 0 0; cursor:pointer;
+}
+#quizA { width:120px; font-size:24px; text-align:center; padding:8px; border:2px solid #ccc; border-radius:8px; }
+
+/* 紙吹雪 */
+#confetti { position:fixed; top:0; left:0; right:0; bottom:0; pointer-events:none; z-index:60; overflow:hidden; }
+#confetti span {
+  position:absolute; top:-50px;
+  -webkit-animation-name:fall; animation-name:fall;
+  -webkit-animation-timing-function:linear; animation-timing-function:linear;
+  -webkit-animation-fill-mode:forwards; animation-fill-mode:forwards;
+}
+@-webkit-keyframes fall { to { -webkit-transform:translateY(115vh) rotate(340deg); } }
+@keyframes fall { to { transform:translateY(115vh) rotate(340deg); } }
+</style>
+</head>
+<body>
+
+<button id="btnGear">⚙</button>
+
+<div class="screen" id="scrMain">
+  <div class="hd">
+    <div class="hd-date" id="hdDate"></div>
+    <h1 class="hd-title">きょうの クエスト</h1>
+    <div class="hd-progress" id="hdProg"></div>
+  </div>
+  <div class="cards" id="mainCards"></div>
+</div>
+
+<div class="screen" id="scrVideo">
+  <div class="v-head">
+    <span class="v-title" id="vidTitle">どうがタイム</span>
+    <button class="miniBtn" id="btnVidEnd">おしまいに する</button>
+  </div>
+  <div class="v-timer">
+    <div class="v-bar"><div class="v-fill" id="vidFill" style="width:100%"></div></div>
+    <div class="v-remain" id="vidRemain">--:--</div>
+  </div>
+  <div class="v-center" id="vidStartWrap">
+    <button class="bigBtn orange" id="btnVidStart">▶ スタート！</button>
+    <p class="note" id="vidStartNote" style="margin-top:12px"></p>
+  </div>
+  <div id="vidBox"></div>
+  <p class="note" id="vidNote" style="margin-top:10px"></p>
+</div>
+
+<div class="screen" id="scrAfter">
+  <div class="hd">
+    <div class="hd-date"></div>
+    <h1 class="hd-title">ねるまえの おやくそく</h1>
+    <div class="hd-progress" id="hdProgAfter"></div>
+  </div>
+  <div class="cards" id="afterCards"></div>
+</div>
+
+<div class="screen" id="scrNight">
+  <div class="n-center">
+    <div class="svgWrap"><svg id="svgNight" viewBox="0 0 240 240"></svg></div>
+    <h1>きょうも よく がんばりました！</h1>
+    <p>おやすみなさい 🌙</p>
+  </div>
+</div>
+
+<div class="ov" id="ovCeleb">
+  <div class="ov-inner">
+    <div class="svgWrap" id="celebSvgWrap"><svg id="svgCeleb" viewBox="0 0 240 240"></svg></div>
+    <div class="celebEmoji" id="celebEmoji"></div>
+    <h1 id="celebTitle"></h1>
+    <div class="lines" id="celebLines"></div>
+    <button class="bigBtn" id="btnCeleb"></button>
+  </div>
+</div>
+
+<div class="ov" id="ovConfirm">
+  <div class="ov-inner small">
+    <p id="cfMsg"></p>
+    <div class="row">
+      <button class="bigBtn gray" id="cfNo"></button>
+      <button class="bigBtn" id="cfYes"></button>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="ovQuiz">
+  <div class="ov-inner small">
+    <p class="note">おうちのひと よう</p>
+    <p id="quizQ" style="font-size:26px; margin:10px 0;"></p>
+    <input type="number" id="quizA" placeholder="こたえ">
+    <div class="row" style="margin-top:14px;">
+      <button class="bigBtn gray" id="quizCancel">やめる</button>
+      <button class="bigBtn" id="quizOk">OK</button>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="ovSettings">
+  <div class="ov-panel">
+    <h2>せってい（おうちのひと用）</h2>
+
+    <label>帰宅後のタスク（1行に1つ。「絵文字 なまえ」の形）</label>
+    <textarea id="setMain" rows="8"></textarea>
+
+    <label>ごほうび後のタスク（1行に1つ）</label>
+    <textarea id="setAfter" rows="3"></textarea>
+
+    <div class="grid2">
+      <label>ごほうび動画（分）<br><input type="number" id="setReward"></label>
+      <label>プチごほうび（分）<br><input type="number" id="setPetit"></label>
+    </div>
+
+    <label class="chk" style="margin-top:14px;"><input type="checkbox" id="setBonusOn"> いつもの平均より早く終わったらボーナス時間を足す</label>
+    <div class="grid3">
+      <label>何分早いごとに<br><input type="number" id="setStep"></label>
+      <label>+何分<br><input type="number" id="setPer"></label>
+      <label>上限（分）<br><input type="number" id="setCap"></label>
+    </div>
+    <p class="note" id="avgInfo" style="margin-top:6px;"></p>
+
+    <label>ごほうび動画のURL（YouTubeの動画か再生リストのURLを貼る）</label>
+    <input type="text" id="setUrlMain" placeholder="https://www.youtube.com/watch?v=...">
+
+    <label>プチごほうび動画のURL（ピタゴラスイッチ等）</label>
+    <input type="text" id="setUrlPetit" placeholder="https://www.youtube.com/playlist?list=...">
+
+    <label>動画の見せ方</label>
+    <label class="chk"><input type="radio" name="mode" id="modeEmbed"> このアプリの中で再生する（時間が来たら自動で止まる）</label>
+    <label class="chk"><input type="radio" name="mode" id="modeLink"> YouTubeを開く（自動では止まらない。残り時間はこの画面に出る）</label>
+
+    <h3>これまでの きろく</h3>
+    <p class="note" id="histBox"></p>
+
+    <div class="row wrap" style="text-align:left;">
+      <button class="setBtn" id="btnResetToday">きょうを やりなおす</button>
+      <button class="setBtn" id="btnClearHist">きろくを 全部消す</button>
+    </div>
+    <div class="row" style="margin-top:14px;">
+      <button class="bigBtn gray" id="btnCloseSet">とじる</button>
+      <button class="bigBtn" id="btnSaveSet">ほぞん</button>
+    </div>
+  </div>
+</div>
+
+<div id="confetti"></div>
+
+<script>
+/* iOS 10.3 Safari 互換のためES5構文のみで書く（アロー関数・テンプレート文字列・async等は不使用） */
+(function(){
+'use strict';
+
+var LS_KEY = 'okaeriQuest_v1';
+
+var DEFAULT_SETTINGS = {
+  mainTasks: [
+    {e:'👟', t:'くつを そろえる'},
+    {e:'💧', t:'てあらい・うがい'},
+    {e:'👕', t:'せんたくものを だす'},
+    {e:'🍴', t:'カトラリーを だす'},
+    {e:'🍚', t:'ごはんを ぜんぶ たべる'},
+    {e:'🛁', t:'おふろに はいる'},
+    {e:'✏️', t:'ワークを する'}
+  ],
+  afterTasks: [
+    {e:'😁', t:'はを みがく'},
+    {e:'💦', t:'かおを あらう'}
+  ],
+  rewardMin: 30,
+  petitMin: 10,
+  bonusOn: true,
+  bonusStep: 5,
+  bonusPer: 5,
+  bonusCap: 30,
+  videoMain: '',
+  videoPetit: '',
+  mode: 'embed'
+};
+
+var PETIT_SEARCH_URL = 'https://m.youtube.com/results?search_query=%E3%83%94%E3%82%BF%E3%82%B4%E3%83%A9%E3%82%B9%E3%82%A4%E3%83%83%E3%83%81';
+var MAIN_LINK_URL = 'https://m.youtube.com/';
+
+var state = null;
+var quizAnswer = null;
+var quizAfter = null;
+
+function $(id){ return document.getElementById(id); }
+
+function copyOf(obj){ return JSON.parse(JSON.stringify(obj)); }
+
+function load(){
+  var raw = null;
+  try { raw = localStorage.getItem(LS_KEY); } catch(e){}
+  if (raw) {
+    try { state = JSON.parse(raw); } catch(e){ state = null; }
+  }
+  if (!state || !state.settings) {
+    state = { settings: copyOf(DEFAULT_SETTINGS), history: [], today: null };
+  }
+  var k;
+  for (k in DEFAULT_SETTINGS) {
+    if (state.settings[k] === undefined) state.settings[k] = copyOf(DEFAULT_SETTINGS[k]);
+  }
+  if (!state.history) state.history = [];
+}
+
+function save(){
+  try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch(e){}
+}
+
+function todayStr(){
+  var d = new Date();
+  var m = d.getMonth()+1, day = d.getDate();
+  return d.getFullYear()+'-'+(m<10?'0':'')+m+'-'+(day<10?'0':'')+day;
+}
+
+function dateLabel(){
+  var d = new Date();
+  var w = ['にち','げつ','か','すい','もく','きん','ど'];
+  return (d.getMonth()+1)+'がつ '+d.getDate()+'にち（'+w[d.getDay()]+'）';
+}
+
+function ensureToday(){
+  var t = todayStr();
+  if (!state.today || state.today.date !== t) {
+    state.today = {
+      date: t, phase: 'main',
+      doneMain: [], doneAfter: [],
+      finishMin: null, bonus: 0, diffEarly: 0, earned: null,
+      endAt: null
+    };
+    save();
+    return true;
+  }
+  return false;
+}
+
+/* ---------- 音（Web Audio・iOS旧SafariはwebkitAudioContext） ---------- */
+var AC = window.AudioContext || window.webkitAudioContext;
+var actx = null;
+function ensureAudio(){
+  if (!AC) return null;
+  if (!actx) { try { actx = new AC(); } catch(e){ return null; } }
+  if (actx.resume) { try { actx.resume(); } catch(e){} }
+  return actx;
+}
+function tone(freq, start, dur, vol, type){
+  var c = ensureAudio(); if (!c) return;
+  var o = c.createOscillator(), g = c.createGain();
+  o.type = type || 'sine';
+  o.frequency.value = freq;
+  var t = c.currentTime + start;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(vol || 0.22, t + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(c.destination);
+  o.start(t); o.stop(t + dur + 0.05);
+}
+function sndTap(){ tone(660,0,0.14); tone(990,0.09,0.22); }
+function sndUndo(){ tone(440,0,0.15); tone(330,0.1,0.2); }
+function sndFanfare(){
+  tone(523,0,0.22); tone(659,0.14,0.22); tone(784,0.28,0.22); tone(1046,0.42,0.5,0.3);
+  tone(659,0.62,0.4,0.15); tone(784,0.62,0.4,0.15); tone(1046,0.62,0.6,0.2);
+}
+function sndSmallFanfare(){ tone(659,0,0.18); tone(784,0.12,0.18); tone(988,0.24,0.4,0.28); }
+function sndTimeUp(){ tone(1046,0,0.35); tone(784,0.28,0.35); tone(523,0.56,0.7); }
+function sndNight(){ tone(523,0,0.5,0.15); tone(392,0.4,0.6,0.15); tone(330,0.85,1.2,0.15); }
+
+/* ---------- タップ処理（iOS10はuser-scalable=noが無効なのでダブルタップ拡大を自前で抑止） ---------- */
+function bindTap(el, fn){
+  var moved = false, usedTouch = false;
+  el.addEventListener('touchstart', function(){ moved = false; }, false);
+  el.addEventListener('touchmove', function(){ moved = true; }, false);
+  el.addEventListener('touchend', function(e){
+    if (moved) return;
+    usedTouch = true;
+    e.preventDefault();
+    ensureAudio();
+    fn(e);
+  }, false);
+  el.addEventListener('click', function(e){
+    if (usedTouch) { usedTouch = false; return; }
+    ensureAudio();
+    fn(e);
+  }, false);
+}
+document.addEventListener('gesturestart', function(e){ e.preventDefault(); }, false);
+
+/* ---------- 花丸SVG ---------- */
+function scallopPath(cx, cy, r, n){
+  var path = '', i, a0, a1, am, x0, y0, x1, y1, mx, my, rr = r * 1.28;
+  for (i = 0; i < n; i++) {
+    a0 = (i / n) * 2 * Math.PI - Math.PI / 2;
+    a1 = ((i + 1) / n) * 2 * Math.PI - Math.PI / 2;
+    x0 = cx + r * Math.cos(a0); y0 = cy + r * Math.sin(a0);
+    x1 = cx + r * Math.cos(a1); y1 = cy + r * Math.sin(a1);
+    if (i === 0) path = 'M' + x0.toFixed(1) + ' ' + y0.toFixed(1);
+    am = (a0 + a1) / 2;
+    mx = cx + rr * Math.cos(am); my = cy + rr * Math.sin(am);
+    path += ' Q' + mx.toFixed(1) + ' ' + my.toFixed(1) + ' ' + x1.toFixed(1) + ' ' + y1.toFixed(1);
+  }
+  return path;
+}
+function spiralPath(cx, cy, rMax, turns){
+  var path = '', i, steps = 110, t, a, r, x, y;
+  for (i = 0; i <= steps; i++) {
+    t = i / steps;
+    a = t * turns * 2 * Math.PI - Math.PI / 2;
+    r = rMax * t;
+    x = cx + r * Math.cos(a); y = cy + r * Math.sin(a);
+    path += (i === 0 ? 'M' : ' L') + x.toFixed(1) + ' ' + y.toFixed(1);
+  }
+  return path;
+}
+function drawHanamaru(svg){
+  var NS = 'http://www.w3.org/2000/svg';
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  var spiral = document.createElementNS(NS, 'path');
+  spiral.setAttribute('d', spiralPath(120, 120, 52, 3));
+  var scallop = document.createElementNS(NS, 'path');
+  scallop.setAttribute('d', scallopPath(120, 120, 82, 12));
+  var paths = [spiral, scallop], i, p, len;
+  for (i = 0; i < 2; i++) {
+    p = paths[i];
+    p.setAttribute('fill', 'none');
+    p.setAttribute('stroke', '#D55E00');
+    p.setAttribute('stroke-width', '11');
+    p.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(p);
+  }
+  var lens = [spiral.getTotalLength(), scallop.getTotalLength()];
+  for (i = 0; i < 2; i++) {
+    paths[i].setAttribute('stroke-dasharray', String(lens[i]));
+    paths[i].setAttribute('stroke-dashoffset', String(lens[i]));
+  }
+  var start = Date.now(), durs = [700, 900], delays = [0, 600];
+  function step(){
+    var el = Date.now() - start, j, k, off;
+    for (j = 0; j < 2; j++) {
+      k = (el - delays[j]) / durs[j];
+      if (k < 0) k = 0; if (k > 1) k = 1;
+      off = lens[j] * (1 - k);
+      paths[j].setAttribute('stroke-dashoffset', String(off));
+    }
+    if (el < delays[1] + durs[1]) {
+      if (window.requestAnimationFrame) requestAnimationFrame(step);
+      else setTimeout(step, 33);
+    }
+  }
+  step();
+}
+
+/* ---------- 紙吹雪 ---------- */
+function confetti(){
+  var box = $('confetti'), em = ['💮','⭐','🌸','✨','🎉'], i, s;
+  while (box.firstChild) box.removeChild(box.firstChild);
+  for (i = 0; i < 26; i++) {
+    s = document.createElement('span');
+    s.textContent = em[i % em.length];
+    s.style.left = (Math.random() * 96) + '%';
+    s.style.fontSize = (20 + Math.random() * 22) + 'px';
+    s.style.webkitAnimationDelay = s.style.animationDelay = (Math.random() * 0.9) + 's';
+    s.style.webkitAnimationDuration = s.style.animationDuration = (2.2 + Math.random() * 1.6) + 's';
+    box.appendChild(s);
+  }
+  setTimeout(function(){ while (box.firstChild) box.removeChild(box.firstChild); }, 5200);
+}
+
+/* ---------- YouTube URL解釈 ---------- */
+function parseYT(url){
+  if (!url) return null;
+  url = url.replace(/^\s+|\s+$/g, '');
+  if (!url) return null;
+  var m = url.match(/[?&]list=([\w-]+)/);
+  if (m) return { kind: 'list', id: m[1] };
+  m = url.match(/(?:[?&]v=|youtu\.be\/|\/embed\/|\/shorts\/)([\w-]{6,})/);
+  if (m) return { kind: 'v', id: m[1] };
+  if (/^[\w-]{6,}$/.test(url)) return { kind: 'v', id: url };
+  return null;
+}
+function embedSrc(p){
+  if (p.kind === 'list') return 'https://www.youtube.com/embed/videoseries?list=' + p.id + '&playsinline=1&rel=0';
+  return 'https://www.youtube.com/embed/' + p.id + '?playsinline=1&rel=0';
+}
+
+/* ---------- ボーナス計算 ---------- */
+function pastFinishes(){
+  var arr = [], i, h;
+  for (i = 0; i < state.history.length; i++) {
+    h = state.history[i];
+    if (h.date !== state.today.date && typeof h.finishMin === 'number') arr.push(h.finishMin);
+  }
+  if (arr.length > 14) arr = arr.slice(arr.length - 14);
+  return arr;
+}
+function avgFinish(){
+  var arr = pastFinishes(), i, s = 0;
+  if (arr.length < 3) return null;
+  for (i = 0; i < arr.length; i++) s += arr[i];
+  return s / arr.length;
+}
+function calcBonus(fm){
+  var st = state.settings;
+  if (!st.bonusOn) return { bonus: 0, diff: 0 };
+  var avg = avgFinish();
+  if (avg === null) return { bonus: 0, diff: 0 };
+  var diff = Math.floor(avg - fm);
+  if (diff < st.bonusStep) return { bonus: 0, diff: diff > 0 ? diff : 0 };
+  var b = Math.floor(diff / st.bonusStep) * st.bonusPer;
+  if (b > st.bonusCap) b = st.bonusCap;
+  return { bonus: b, diff: diff };
+}
+function fmtHM(min){
+  var h = Math.floor(min / 60), m = Math.round(min % 60);
+  return h + ':' + (m < 10 ? '0' : '') + m;
+}
+
+/* ---------- 画面切替 ---------- */
+function showScreen(id){
+  var ids = ['scrMain','scrVideo','scrAfter','scrNight'], i;
+  for (i = 0; i < ids.length; i++) {
+    if (ids[i] === id) $(ids[i]).className = 'screen on';
+    else $(ids[i]).className = 'screen';
+  }
+}
+function hideOverlays(){
+  $('ovCeleb').className = 'ov';
+  $('ovConfirm').className = 'ov';
+  $('ovQuiz').className = 'ov';
+  $('ovSettings').className = 'ov';
+}
+
+/* ---------- お祝いオーバーレイ ---------- */
+var celebBtnAction = null;
+function showCeleb(opts){
+  $('celebSvgWrap').style.display = opts.hanamaru ? 'block' : 'none';
+  $('celebEmoji').style.display = opts.emoji ? 'block' : 'none';
+  $('celebEmoji').textContent = opts.emoji || '';
+  $('celebTitle').textContent = opts.title;
+  var box = $('celebLines');
+  while (box.firstChild) box.removeChild(box.firstChild);
+  var i, d;
+  for (i = 0; i < opts.lines.length; i++) {
+    d = document.createElement('div');
+    if (opts.lines[i].bold) d.className = 'bonus';
+    d.textContent = opts.lines[i].text;
+    box.appendChild(d);
+  }
+  $('btnCeleb').textContent = opts.btn;
+  celebBtnAction = opts.onBtn;
+  $('ovCeleb').className = 'ov on';
+  if (opts.hanamaru) drawHanamaru($('svgCeleb'));
+}
+
+/* ---------- 確認ダイアログ ---------- */
+var cfCb = null;
+function askConfirm(msg, yesLabel, noLabel, cb){
+  $('cfMsg').textContent = msg;
+  $('cfYes').textContent = yesLabel;
+  $('cfNo').textContent = noLabel;
+  cfCb = cb;
+  $('ovConfirm').className = 'ov on';
+}
+
+/* ---------- タスクカード描画 ---------- */
+function buildCards(containerId, tasks, doneArr, kind){
+  var box = $(containerId), i, card, em, tx, stamp;
+  while (box.firstChild) box.removeChild(box.firstChild);
+  for (i = 0; i < tasks.length; i++) {
+    card = document.createElement('div');
+    card.className = 'card' + (doneArr[i] ? ' done' : '');
+    em = document.createElement('div'); em.className = 'c-emoji'; em.textContent = tasks[i].e;
+    tx = document.createElement('div'); tx.className = 'c-text'; tx.textContent = tasks[i].t;
+    stamp = document.createElement('div'); stamp.className = 'c-stamp'; stamp.textContent = '💮';
+    card.appendChild(em); card.appendChild(tx); card.appendChild(stamp);
+    (function(idx, el){
+      bindTap(el, function(){ onTaskTap(kind, idx, el); });
+    })(i, card);
+    box.appendChild(card);
+  }
+}
+function renderProgress(elId, tasks, doneArr){
+  var n = 0, i, s = '';
+  for (i = 0; i < tasks.length; i++) if (doneArr[i]) n++;
+  for (i = 0; i < n; i++) s += '💮';
+  $(elId).textContent = 'できた ' + n + '／' + tasks.length + '  ' + s;
+  return n;
+}
+function onTaskTap(kind, idx, el){
+  var tasks = kind === 'main' ? state.settings.mainTasks : state.settings.afterTasks;
+  var done = kind === 'main' ? state.today.doneMain : state.today.doneAfter;
+  if (done[idx]) {
+    askConfirm('「' + tasks[idx].t + '」を とりけす？', 'とりけす', 'やめる', function(yes){
+      if (yes) { done[idx] = false; sndUndo(); save(); render(); }
+    });
+    return;
+  }
+  done[idx] = true;
+  save();
+  sndTap();
+  el.className = 'card done pop';
+  var stampEl = el;
+  setTimeout(function(){ stampEl.className = 'card done'; }, 550);
+  if (kind === 'main') {
+    renderProgress('hdProg', tasks, done);
+    if (countDone(done, tasks.length) === tasks.length) {
+      setTimeout(completeMain, 650);
+    }
+  } else {
+    renderProgress('hdProgAfter', tasks, done);
+    if (countDone(done, tasks.length) === tasks.length) {
+      setTimeout(completeAfter, 650);
+    }
+  }
+}
+function countDone(arr, n){
+  var i, c = 0;
+  for (i = 0; i < n; i++) if (arr[i]) c++;
+  return c;
+}
+
+/* ---------- フェーズ進行 ---------- */
+function completeMain(){
+  if (state.today.phase !== 'main') return;
+  var d = new Date();
+  var fm = d.getHours() * 60 + d.getMinutes();
+  var r = calcBonus(fm);
+  state.today.finishMin = fm;
+  state.today.bonus = r.bonus;
+  state.today.diffEarly = r.diff;
+  state.today.earned = state.settings.rewardMin + r.bonus;
+  var i, found = false;
+  for (i = 0; i < state.history.length; i++) {
+    if (state.history[i].date === state.today.date) {
+      state.history[i] = { date: state.today.date, finishMin: fm, bonus: r.bonus };
+      found = true; break;
+    }
+  }
+  if (!found) state.history.push({ date: state.today.date, finishMin: fm, bonus: r.bonus });
+  if (state.history.length > 60) state.history = state.history.slice(state.history.length - 60);
+  state.today.phase = 'celeb1';
+  save();
+  render();
+}
+function celeb1Contents(){
+  var lines = [{ text: 'ぜんぶ できた！すごい！' }];
+  if (state.today.bonus > 0) {
+    lines.push({ text: 'いつもより ' + state.today.diffEarly + 'ふん はやい！', bold: true });
+    lines.push({ text: 'ボーナス ＋' + state.today.bonus + 'ふん！', bold: true });
+  }
+  lines.push({ text: 'どうがタイム ' + state.today.earned + 'ふん！' });
+  return {
+    hanamaru: true, title: 'はなまる！', lines: lines,
+    btn: 'どうがタイムへ ▶',
+    onBtn: function(){ state.today.phase = 'video1'; save(); render(); }
+  };
+}
+function completeAfter(){
+  if (state.today.phase !== 'after') return;
+  state.today.phase = 'celeb2';
+  save();
+  render();
+}
+function celeb2Contents(){
+  return {
+    emoji: '💮', title: 'できました！',
+    lines: [{ text: 'ピタゴラタイム ' + state.settings.petitMin + 'ふん！' }],
+    btn: 'ピタゴラタイムへ ▶',
+    onBtn: function(){ state.today.phase = 'video2'; save(); render(); }
+  };
+}
+
+/* ---------- 動画画面 ---------- */
+function videoConf(){
+  if (state.today.phase === 'video1') {
+    return {
+      kind: 1, title: 'どうがタイム',
+      minutes: state.today.earned !== null ? state.today.earned : state.settings.rewardMin,
+      url: state.settings.videoMain, linkFallback: MAIN_LINK_URL
+    };
+  }
+  return {
+    kind: 2, title: 'ピタゴラタイム',
+    minutes: state.settings.petitMin,
+    url: state.settings.videoPetit, linkFallback: PETIT_SEARCH_URL
+  };
+}
+function renderVideo(){
+  var c = videoConf();
+  $('vidTitle').textContent = c.title;
+  var box = $('vidBox');
+  while (box.firstChild) box.removeChild(box.firstChild);
+  $('vidNote').textContent = '';
+  if (!state.today.endAt) {
+    $('vidStartWrap').style.display = 'block';
+    $('vidStartNote').textContent = c.minutes + 'ふん みられるよ。じゅんびが できたら スタート！';
+    $('vidRemain').textContent = fmtRemain(c.minutes * 60000);
+    $('vidFill').style.width = '100%';
+  } else {
+    $('vidStartWrap').style.display = 'none';
+    mountPlayer(c);
+  }
+}
+function mountPlayer(c){
+  var box = $('vidBox'), p = parseYT(c.url);
+  while (box.firstChild) box.removeChild(box.firstChild);
+  if (state.settings.mode === 'embed' && p) {
+    var f = document.createElement('iframe');
+    f.setAttribute('src', embedSrc(p));
+    f.setAttribute('allowfullscreen', 'true');
+    box.appendChild(f);
+    $('vidNote').textContent = 'じかんが きたら じどうで おわるよ。';
+  } else {
+    var a = document.createElement('a');
+    a.href = p ? (p.kind === 'list' ? 'https://m.youtube.com/playlist?list=' + p.id : 'https://m.youtube.com/watch?v=' + p.id) : c.linkFallback;
+    a.className = 'bigBtn orange';
+    a.style.textDecoration = 'none';
+    a.textContent = '▶ どうがを ひらく';
+    a.setAttribute('target', '_blank');
+    box.appendChild(a);
+    $('vidNote').textContent = 'みおわったら この がめんに もどってきてね。';
+    if (state.settings.mode === 'embed' && !p) {
+      $('vidNote').textContent += '（おうちのひとへ: 設定画面で動画URLを登録するとアプリ内再生になります）';
+    }
+  }
+}
+function startVideo(){
+  var c = videoConf();
+  state.today.endAt = Date.now() + Math.round(c.minutes * 60000);
+  save();
+  renderVideo();
+}
+function endVideo(byTimer){
+  var c = videoConf();
+  var box = $('vidBox');
+  while (box.firstChild) box.removeChild(box.firstChild);
+  state.today.endAt = null;
+  if (c.kind === 1) {
+    state.today.phase = 'after';
+    save();
+    if (byTimer) sndTimeUp();
+    render();
+    showCeleb({
+      emoji: '⏰', title: 'どうがタイム おしまい！',
+      lines: [{ text: 'つぎは ねるまえの おやくそく だよ' }],
+      btn: 'つぎへ ▶',
+      onBtn: function(){ hideCeleb(); }
+    });
+  } else {
+    state.today.phase = 'night';
+    save();
+    if (byTimer) sndTimeUp();
+    render();
+  }
+}
+function fmtRemain(ms){
+  if (ms < 0) ms = 0;
+  var s = Math.ceil(ms / 1000);
+  var m = Math.floor(s / 60);
+  s = s % 60;
+  return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+}
+function hideCeleb(){ $('ovCeleb').className = 'ov'; celebBtnAction = null; }
+
+/* ---------- 毎秒処理 ---------- */
+function tick(){
+  if (ensureToday()) { render(); return; }
+  var ph = state.today.phase;
+  if ((ph === 'video1' || ph === 'video2') && state.today.endAt) {
+    var c = videoConf();
+    var remain = state.today.endAt - Date.now();
+    var total = c.minutes * 60000;
+    $('vidRemain').textContent = fmtRemain(remain);
+    var pct = total > 0 ? (remain / total) * 100 : 0;
+    if (pct < 0) pct = 0; if (pct > 100) pct = 100;
+    $('vidFill').style.width = pct + '%';
+    if (remain <= 0) endVideo(true);
+  }
+}
+
+/* ---------- 全体描画 ---------- */
+function render(){
+  $('hdDate').textContent = dateLabel();
+  hideOverlays();
+  var ph = state.today.phase;
+  if (ph === 'main' || ph === 'celeb1') {
+    showScreen('scrMain');
+    buildCards('mainCards', state.settings.mainTasks, state.today.doneMain, 'main');
+    renderProgress('hdProg', state.settings.mainTasks, state.today.doneMain);
+    if (ph === 'celeb1') {
+      showCeleb(celeb1Contents());
+      confetti();
+      sndFanfare();
+    }
+  } else if (ph === 'video1' || ph === 'video2') {
+    showScreen('scrVideo');
+    renderVideo();
+  } else if (ph === 'after' || ph === 'celeb2') {
+    showScreen('scrAfter');
+    buildCards('afterCards', state.settings.afterTasks, state.today.doneAfter, 'after');
+    renderProgress('hdProgAfter', state.settings.afterTasks, state.today.doneAfter);
+    if (ph === 'celeb2') {
+      showCeleb(celeb2Contents());
+      sndSmallFanfare();
+    }
+  } else if (ph === 'night') {
+    showScreen('scrNight');
+    drawNight();
+  }
+}
+var nightDrawn = '';
+function drawNight(){
+  if (nightDrawn === state.today.date) return;
+  nightDrawn = state.today.date;
+  drawHanamaru($('svgNight'));
+  confetti();
+  sndNight();
+}
+
+/* ---------- 設定 ---------- */
+function tasksToText(tasks){
+  var out = [], i;
+  for (i = 0; i < tasks.length; i++) out.push(tasks[i].e + ' ' + tasks[i].t);
+  return out.join('\n');
+}
+function textToTasks(text){
+  var lines = text.split('\n'), out = [], i, line, sp, e, t;
+  for (i = 0; i < lines.length; i++) {
+    line = lines[i].replace(/^\s+|\s+$/g, '');
+    if (!line) continue;
+    sp = line.indexOf(' ');
+    if (sp < 0) sp = line.indexOf('　');
+    if (sp > 0) {
+      e = line.substring(0, sp).replace(/^\s+|\s+$/g, '');
+      t = line.substring(sp + 1).replace(/^\s+|\s+$/g, '');
+      if (/[ぁ-んァ-ヶ一-龥a-zA-Z0-9]/.test(e)) { e = '⭐'; t = line; }
+    } else {
+      e = '⭐'; t = line;
+    }
+    if (t) out.push({ e: e, t: t });
+  }
+  return out;
+}
+function openSettings(){
+  var st = state.settings;
+  $('setMain').value = tasksToText(st.mainTasks);
+  $('setAfter').value = tasksToText(st.afterTasks);
+  $('setReward').value = st.rewardMin;
+  $('setPetit').value = st.petitMin;
+  $('setBonusOn').checked = !!st.bonusOn;
+  $('setStep').value = st.bonusStep;
+  $('setPer').value = st.bonusPer;
+  $('setCap').value = st.bonusCap;
+  $('setUrlMain').value = st.videoMain;
+  $('setUrlPetit').value = st.videoPetit;
+  $('modeEmbed').checked = st.mode === 'embed';
+  $('modeLink').checked = st.mode === 'link';
+  var avg = avgFinish(), n = pastFinishes().length;
+  if (avg === null) {
+    $('avgInfo').textContent = '記録が3回たまるとボーナス判定が動きます（いま ' + n + '回）。';
+  } else {
+    $('avgInfo').textContent = 'いつもの終わり時刻（直近' + n + '回の平均）= ' + fmtHM(avg);
+  }
+  var hb = $('histBox'), i, h, lines = [];
+  var hist = state.history.slice();
+  hist.reverse();
+  if (hist.length > 14) hist = hist.slice(0, 14);
+  for (i = 0; i < hist.length; i++) {
+    h = hist[i];
+    lines.push(h.date + '　' + fmtHM(h.finishMin) + ' に完了' + (h.bonus > 0 ? '（ボーナス +' + h.bonus + '分）' : ''));
+  }
+  hb.textContent = lines.length ? lines.join('\n') : 'まだ記録がありません。';
+  hb.style.whiteSpace = 'pre-line';
+  $('ovSettings').className = 'ov on';
+}
+function saveSettings(){
+  var st = state.settings;
+  var mt = textToTasks($('setMain').value);
+  var at = textToTasks($('setAfter').value);
+  if (mt.length) st.mainTasks = mt;
+  if (at.length) st.afterTasks = at;
+  st.rewardMin = clampNum($('setReward').value, 1, 180, 30);
+  st.petitMin = clampNum($('setPetit').value, 1, 60, 10);
+  st.bonusOn = $('setBonusOn').checked;
+  st.bonusStep = clampNum($('setStep').value, 1, 60, 5);
+  st.bonusPer = clampNum($('setPer').value, 1, 30, 5);
+  st.bonusCap = clampNum($('setCap').value, 0, 120, 30);
+  st.videoMain = $('setUrlMain').value.replace(/^\s+|\s+$/g, '');
+  st.videoPetit = $('setUrlPetit').value.replace(/^\s+|\s+$/g, '');
+  st.mode = $('modeLink').checked ? 'link' : 'embed';
+  if (state.today.doneMain.length > st.mainTasks.length) state.today.doneMain.length = st.mainTasks.length;
+  if (state.today.doneAfter.length > st.afterTasks.length) state.today.doneAfter.length = st.afterTasks.length;
+  save();
+  $('ovSettings').className = 'ov';
+  render();
+}
+function clampNum(v, min, max, def){
+  var n = parseFloat(v);
+  if (isNaN(n)) return def;
+  if (n < min) return min;
+  if (n > max) return max;
+  return n;
+}
+function openQuiz(after){
+  var a = 2 + Math.floor(Math.random() * 8), b = 2 + Math.floor(Math.random() * 8);
+  quizAnswer = a + b;
+  quizAfter = after;
+  $('quizQ').textContent = a + ' + ' + b + ' = ?';
+  $('quizA').value = '';
+  $('ovQuiz').className = 'ov on';
+}
+
+/* ---------- イベント結線 ---------- */
+bindTap($('btnCeleb'), function(){
+  var fn = celebBtnAction;
+  hideCeleb();
+  if (fn) fn();
+});
+bindTap($('cfYes'), function(){ $('ovConfirm').className = 'ov'; if (cfCb) cfCb(true); cfCb = null; });
+bindTap($('cfNo'), function(){ $('ovConfirm').className = 'ov'; if (cfCb) cfCb(false); cfCb = null; });
+bindTap($('btnVidStart'), startVideo);
+bindTap($('btnVidEnd'), function(){
+  askConfirm('どうがを おしまいに する？', 'おしまいに する', 'まだ みる', function(yes){
+    if (yes) endVideo(false);
+  });
+});
+bindTap($('btnGear'), function(){ openQuiz(openSettings); });
+$('quizOk').addEventListener('click', function(){
+  if (parseInt($('quizA').value, 10) === quizAnswer) {
+    $('ovQuiz').className = 'ov';
+    if (quizAfter) quizAfter();
+  } else {
+    $('quizA').value = '';
+    $('quizA').placeholder = 'ちがうよ';
+  }
+}, false);
+$('quizCancel').addEventListener('click', function(){ $('ovQuiz').className = 'ov'; }, false);
+$('btnSaveSet').addEventListener('click', saveSettings, false);
+$('btnCloseSet').addEventListener('click', function(){ $('ovSettings').className = 'ov'; }, false);
+$('btnResetToday').addEventListener('click', function(){
+  if (window.confirm('今日のチェックを全部消して最初からにします。いいですか？')) {
+    var i;
+    for (i = 0; i < state.history.length; i++) {
+      if (state.history[i].date === state.today.date) { state.history.splice(i, 1); break; }
+    }
+    state.today = null;
+    nightDrawn = '';
+    ensureToday();
+    save();
+    $('ovSettings').className = 'ov';
+    render();
+  }
+}, false);
+$('btnClearHist').addEventListener('click', function(){
+  if (window.confirm('これまでの記録（終わり時刻の履歴）を全部消します。いいですか？')) {
+    state.history = [];
+    save();
+    openSettings();
+  }
+}, false);
+
+/* ---------- 起動 ---------- */
+load();
+ensureToday();
+render();
+setInterval(tick, 500);
+
+})();
+</script>
+</body>
+</html>
