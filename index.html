@@ -83,12 +83,34 @@ body.bigvid { background:#000; }
 body.bigvid .screen { padding:0; background:#000; overflow:hidden; }
 body.bigvid #vidStartWrap, body.bigvid #vidNote,
 body.bigvid .v-title, body.bigvid .v-bar { display:none; }
-body.bigvid #vidBox { position:absolute; top:0; left:0; right:0; bottom:54px; }
+body.bigvid #vidBox { position:absolute; top:0; left:0; right:0; bottom:64px; }
 body.bigvid #vidBox iframe { width:100%; height:100%; max-height:none; border-radius:0; }
-body.bigvid .v-head { position:absolute; right:10px; bottom:0; height:54px; z-index:2; }
+body.bigvid .v-head { position:absolute; right:8px; bottom:0; height:64px; z-index:3; }
 body.bigvid .v-timer {
-  position:absolute; left:14px; bottom:0; height:54px; margin:0; z-index:2;
+  position:absolute; left:12px; bottom:0; height:64px; margin:0; z-index:3;
   display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center;
+}
+.v-ctrl { display:none; }
+body.bigvid .v-ctrl {
+  display:block; position:absolute; left:0; right:0; bottom:0;
+  height:64px; padding-top:9px; text-align:center; z-index:2;
+}
+.ctrlBtn {
+  border:0; background:#333; color:#fff; border-radius:12px;
+  font-size:19px; font-weight:bold; padding:11px 20px; margin:0 5px; cursor:pointer;
+}
+.ctrlBtn:active { background:#5a5a5a; }
+
+.pickGrid { text-align:center; margin-bottom:10px; }
+.pickItem { display:inline-block; width:200px; margin:8px; vertical-align:top; cursor:pointer; }
+.pickItem img {
+  display:block; width:200px; height:112px; background:#000;
+  border:3px solid #ddd; border-radius:10px;
+}
+.pickItem.cur img { border-color:#0072B2; }
+.pickItem .pt {
+  font-size:13px; line-height:1.4; color:#555; margin-top:4px;
+  height:37px; overflow:hidden;
 }
 body.bigvid .v-remain { margin:0; font-size:26px; color:#F0E442; }
 body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size:16px; padding:8px 16px; }
@@ -182,6 +204,11 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
     <p class="note" id="vidStartNote" style="margin-top:12px"></p>
   </div>
   <div id="vidBox"></div>
+  <div class="v-ctrl" id="vidCtrl">
+    <button class="ctrlBtn" id="btnVidPrev">&#9198; まえ</button>
+    <button class="ctrlBtn" id="btnVidNext">&#9197; つぎ</button>
+    <button class="ctrlBtn" id="btnVidPick">&#9776; えらぶ</button>
+  </div>
   <p class="note" id="vidNote" style="margin-top:10px"></p>
 </div>
 
@@ -231,6 +258,14 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
       <button class="bigBtn gray" id="quizCancel">やめる</button>
       <button class="bigBtn" id="quizOk">OK</button>
     </div>
+  </div>
+</div>
+
+<div class="ov" id="ovPick">
+  <div class="ov-inner">
+    <h1>どれを みる？</h1>
+    <div class="pickGrid" id="pickGrid"></div>
+    <button class="bigBtn gray" id="pickClose">とじる</button>
   </div>
 </div>
 
@@ -291,6 +326,7 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
 var LS_KEY = 'okaeriQuest_v1';
 var CONFIG_VERSION = 2;
 var FILE_MANAGED = ['videoMain', 'videoPetit'];
+var VIDEO_LISTS = {"main":{"list":"UUC4107WX_cYsJ80fWjR5Hjw","items":[{"id":"rZZLqEwtT20","t":"ついに昆虫展に「むし岡コーナー」を作ってきたぜ！！！！"},{"id":"NVmitiDUK4M","t":"【衝撃】カブトムシ1匹を腐葉土の中に入れると・・・"},{"id":"fsNrV69ulJk","t":"セミが大量に採れる季節がはじまりました！！！！"},{"id":"QP5cMuTthKc","t":"夏休み限定！世界の昆虫たちが集まる昆虫展がスゴすぎる！"},{"id":"OaP8pPgqMIs","t":"いまのガチャガチャってこんなことになってんの？www"},{"id":"yVQdFIksZlg","t":"昆虫採集ってこういうのでいいんだよ"},{"id":"jar39uoSkNY","t":"新グッズ&夏のイベントのお知らせ！"},{"id":"PRJudDCokkk","t":"カブトムシが200匹放たれる夏休み限定の昆虫展がヤバい！！"},{"id":"rltxGvnfwYU","t":"これが噂のネギトラップ！その威力をご覧あれ！！！"},{"id":"K5pqVbSG55w","t":"河川敷のカブトムシ・クワガタはこうやって探せ！！！！！"},{"id":"bGG7GnP4oGo","t":"【大量】この季節の昆虫採集は河川敷がアツい！！！！！！"},{"id":"ODdGk4kc7mY","t":"八王子の新しい昆虫ショップが最高すぎる！！！！"},{"id":"HaIbB9JTJaQ","t":"ずっと会いたかった虫がそこにいたのです"},{"id":"M0o5d9hP6ek","t":"大ピンチです。ご協力よろしくお願いいたします。"},{"id":"AgxVlpQ1Nmw","t":"危険すぎるクワガタを飼育します"}]},"petit":{"list":"UU6cXcs9jEmAx9qPx6ubWWkg","items":[{"id":"Dv42PzK8Aps","t":"「もりのおく」ピタゴラスイッチカバー つながりうた Eテレ オリジナルアニメーション"},{"id":"4xZ0B1g3LUI","t":"「たまご会議」 おとなのピタゴラスイッチ  Eテレ オリジナルアニメーション"},{"id":"LETUJ2ArTcg","t":"「こたつたこ」なぞなぞ編 おとなのピタゴラスイッチ 回文の歌 Eテレ オリジナルアニメーション"},{"id":"meKen0btf-c","t":"ビーだまビーすけの大冒険スペシャル全部入り+追加場面あり音質調整版 E-テレ NHK ピタゴラスイッチカバー"},{"id":"H6pPoYO10hg","t":"るかろか ピタゴラスイッチ Eテレ NHK けいのチァンネル"},{"id":"806eNZXFhT0","t":"効率第一ダンドリオン お掃除編 ピタゴラスイッチ好きなら必見！Eテレ新番組テキシコーより和牛のお二人によるアニメ Eテレ NHK"},{"id":"N0r5WlkdSh4","t":"パタトクカシー おとなのピタゴラスイッチ Eテレ オリジナルアニメーション"},{"id":"lz5K5aSnZXw","t":"「こたつたこ」その2 おとなのピタゴラスイッチ 回文の歌 Eテレ オリジナルアニメーション"},{"id":"lC2hxHBEqXI","t":"しめじソート おとなのピタゴラスイッチ Eテレ マージソート"},{"id":"ULrh9saGwAg","t":"ぽんほんぼんの歌 おとなのピタゴラスイッチ Eテレ オリジナルアニメーション"},{"id":"SwCbDgiCpTQ","t":"ビーだまビーすけの大冒険ファイナル ビーすけと黒玉王子の大脱出 おとなのピタゴラスイッチ Eテレ NHK"},{"id":"cZzjXk25W9E","t":"びーだまびーすけの大冒険 Ep3 プロローグ おとなのピタゴラスイッチ MarbleB suke Great Adventure Episode3 Prologue Eテレ NHK"},{"id":"dqaAC0EpwYU","t":"アルゴリズム体操 ピタゴラスイッチ あっちむいて二人でまえならえ"},{"id":"P_tYwzXUPvc","t":"ビーだまビーすけの大冒険番外編 黒玉軍のピタゴラ装置 おとなのピタゴラスイッチ Eテレ NHK"},{"id":"otobyfuehmc","t":"「こたつたこ」おとなのピタゴラスイッチ Eテレ 回文の歌 オリジナルアニメーション"}]}};
 
 var DEFAULT_SETTINGS = {
   mainTasks: [
@@ -321,6 +357,8 @@ var PETIT_SEARCH_URL = 'https://m.youtube.com/results?search_query=%E3%83%94%E3%
 var MAIN_LINK_URL = 'https://m.youtube.com/';
 
 var state = null;
+var vidCur = 0;
+var vidBaked = null;
 var quizAnswer = null;
 var quizAfter = null;
 
@@ -530,6 +568,26 @@ function parseYT(url){
   if (/^[\w-]{6,}$/.test(url)) return { kind: 'v', id: url };
   return null;
 }
+function bakedFor(url){
+  var p = parseYT(url), k;
+  if (!p || p.kind !== 'list') return null;
+  for (k in VIDEO_LISTS) {
+    if (VIDEO_LISTS[k].list === p.id) return VIDEO_LISTS[k];
+  }
+  return null;
+}
+function playSrc(p){
+  var it;
+  if (vidBaked && vidBaked.items.length) {
+    it = vidBaked.items[vidCur];
+    if (it) {
+      return 'https://www.youtube.com/embed/' + it.id +
+        '?list=' + vidBaked.list +
+        '&playsinline=1&rel=0&autoplay=1&enablejsapi=1&controls=1';
+    }
+  }
+  return embedSrc(p);
+}
 function embedSrc(p){
   if (p.kind === 'list') return 'https://www.youtube.com/embed/videoseries?list=' + p.id + '&playsinline=1&rel=0';
   return 'https://www.youtube.com/embed/' + p.id + '?playsinline=1&rel=0';
@@ -581,6 +639,7 @@ function hideOverlays(){
   $('ovConfirm').className = 'ov';
   $('ovQuiz').className = 'ov';
   $('ovSettings').className = 'ov';
+  $('ovPick').className = 'ov';
 }
 
 /* ---------- お祝いオーバーレイ ---------- */
@@ -757,10 +816,12 @@ function renderVideo(){
 }
 function mountPlayer(c){
   var box = $('vidBox'), p = parseYT(c.url);
+  vidBaked = bakedFor(c.url);
+  $('vidCtrl').style.display = (vidBaked && vidBaked.items.length) ? '' : 'none';
   while (box.firstChild) box.removeChild(box.firstChild);
   if (state.settings.mode === 'embed' && p) {
     var f = document.createElement('iframe');
-    f.setAttribute('src', embedSrc(p));
+    f.setAttribute('src', playSrc(p));
     f.setAttribute('allowfullscreen', 'true');
     box.appendChild(f);
     $('vidNote').textContent = 'じかんが きたら じどうで おわるよ。';
@@ -780,8 +841,45 @@ function mountPlayer(c){
     }
   }
 }
+function vidJump(d){
+  if (!vidBaked || !vidBaked.items.length) return;
+  var n = vidBaked.items.length;
+  vidCur = vidCur + d;
+  if (vidCur < 0) vidCur = n - 1;
+  if (vidCur >= n) vidCur = 0;
+  mountPlayer(videoConf());
+}
+function pickTapper(idx){
+  return function(){
+    $('ovPick').className = 'ov';
+    vidCur = idx;
+    mountPlayer(videoConf());
+  };
+}
+function openPick(){
+  if (!vidBaked || !vidBaked.items.length) return;
+  var g = $('pickGrid'), i, it, d, im, tx;
+  while (g.firstChild) g.removeChild(g.firstChild);
+  for (i = 0; i < vidBaked.items.length; i++) {
+    it = vidBaked.items[i];
+    d = document.createElement('div');
+    d.className = 'pickItem' + (i === vidCur ? ' cur' : '');
+    im = document.createElement('img');
+    im.setAttribute('src', 'https://i.ytimg.com/vi/' + it.id + '/mqdefault.jpg');
+    im.setAttribute('alt', '');
+    tx = document.createElement('div');
+    tx.className = 'pt';
+    tx.textContent = it.t;
+    d.appendChild(im);
+    d.appendChild(tx);
+    bindTap(d, pickTapper(i));
+    g.appendChild(d);
+  }
+  $('ovPick').className = 'ov on';
+}
 function startVideo(){
   var c = videoConf();
+  vidCur = 0;
   state.today.endAt = Date.now() + Math.round(c.minutes * 60000);
   save();
   renderVideo();
@@ -981,6 +1079,10 @@ bindTap($('btnVidEnd'), function(){
     if (yes) endVideo(false);
   });
 });
+bindTap($('btnVidPrev'), function(){ vidJump(-1); });
+bindTap($('btnVidNext'), function(){ vidJump(1); });
+bindTap($('btnVidPick'), openPick);
+bindTap($('pickClose'), function(){ $('ovPick').className = 'ov'; });
 bindTap($('btnGear'), function(){ openQuiz(openSettings); });
 $('quizOk').addEventListener('click', function(){
   if (parseInt($('quizA').value, 10) === quizAnswer) {
