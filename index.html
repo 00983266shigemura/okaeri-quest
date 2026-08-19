@@ -79,6 +79,20 @@ button { font-family:inherit; }
 #vidBox { text-align:center; }
 #vidBox iframe { width:100%; height:390px; max-height:56vh; border:0; border-radius:12px; background:#000; }
 
+body.bigvid { background:#000; }
+body.bigvid .screen { padding:0; background:#000; overflow:hidden; }
+body.bigvid #vidStartWrap, body.bigvid #vidNote,
+body.bigvid .v-title, body.bigvid .v-bar { display:none; }
+body.bigvid #vidBox { position:absolute; top:0; left:0; right:0; bottom:54px; }
+body.bigvid #vidBox iframe { width:100%; height:100%; max-height:none; border-radius:0; }
+body.bigvid .v-head { position:absolute; right:10px; bottom:0; height:54px; z-index:2; }
+body.bigvid .v-timer {
+  position:absolute; left:14px; bottom:0; height:54px; margin:0; z-index:2;
+  display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center;
+}
+body.bigvid .v-remain { margin:0; font-size:26px; color:#F0E442; }
+body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size:16px; padding:8px 16px; }
+
 /* 花丸・お祝い */
 .ov {
   display:none; position:fixed; top:0; left:0; right:0; bottom:0;
@@ -275,6 +289,8 @@ button { font-family:inherit; }
 'use strict';
 
 var LS_KEY = 'okaeriQuest_v1';
+var CONFIG_VERSION = 2;
+var FILE_MANAGED = ['videoMain', 'videoPetit'];
 
 var DEFAULT_SETTINGS = {
   mainTasks: [
@@ -296,8 +312,8 @@ var DEFAULT_SETTINGS = {
   bonusStep: 5,
   bonusPer: 5,
   bonusCap: 30,
-  videoMain: '',
-  videoPetit: '',
+  videoMain: 'https://www.youtube.com/playlist?list=UUC4107WX_cYsJ80fWjR5Hjw',
+  videoPetit: 'https://www.youtube.com/playlist?list=UU6cXcs9jEmAx9qPx6ubWWkg',
   mode: 'embed'
 };
 
@@ -312,6 +328,11 @@ function $(id){ return document.getElementById(id); }
 
 function copyOf(obj){ return JSON.parse(JSON.stringify(obj)); }
 
+function setBigVid(on){
+  var b = document.body, c = b.className.replace(/\s*bigvid\s*/g, ' ');
+  b.className = on ? (c + ' bigvid') : c;
+}
+
 function load(){
   var raw = null;
   try { raw = localStorage.getItem(LS_KEY); } catch(e){}
@@ -321,11 +342,18 @@ function load(){
   if (!state || !state.settings) {
     state = { settings: copyOf(DEFAULT_SETTINGS), history: [], today: null };
   }
-  var k;
+  var k, i;
   for (k in DEFAULT_SETTINGS) {
     if (state.settings[k] === undefined) state.settings[k] = copyOf(DEFAULT_SETTINGS[k]);
   }
   if (!state.history) state.history = [];
+  if (state.configVersion !== CONFIG_VERSION) {
+    for (i = 0; i < FILE_MANAGED.length; i++) {
+      state.settings[FILE_MANAGED[i]] = copyOf(DEFAULT_SETTINGS[FILE_MANAGED[i]]);
+    }
+    state.configVersion = CONFIG_VERSION;
+    save();
+  }
 }
 
 function save(){
@@ -542,6 +570,7 @@ function fmtHM(min){
 /* ---------- 画面切替 ---------- */
 function showScreen(id){
   var ids = ['scrMain','scrVideo','scrAfter','scrNight'], i;
+  if (id !== 'scrVideo') setBigVid(false);
   for (i = 0; i < ids.length; i++) {
     if (ids[i] === id) $(ids[i]).className = 'screen on';
     else $(ids[i]).className = 'screen';
@@ -716,6 +745,7 @@ function renderVideo(){
   while (box.firstChild) box.removeChild(box.firstChild);
   $('vidNote').textContent = '';
   if (!state.today.endAt) {
+    setBigVid(false);
     $('vidStartWrap').style.display = 'block';
     $('vidStartNote').textContent = c.minutes + 'ふん みられるよ。じゅんびが できたら スタート！';
     $('vidRemain').textContent = fmtRemain(c.minutes * 60000);
@@ -734,7 +764,9 @@ function mountPlayer(c){
     f.setAttribute('allowfullscreen', 'true');
     box.appendChild(f);
     $('vidNote').textContent = 'じかんが きたら じどうで おわるよ。';
+    setBigVid(true);
   } else {
+    setBigVid(false);
     var a = document.createElement('a');
     a.href = p ? (p.kind === 'list' ? 'https://m.youtube.com/playlist?list=' + p.id : 'https://m.youtube.com/watch?v=' + p.id) : c.linkFallback;
     a.className = 'bigBtn orange';
@@ -756,6 +788,7 @@ function startVideo(){
 }
 function endVideo(byTimer){
   var c = videoConf();
+  setBigVid(false);
   var box = $('vidBox');
   while (box.firstChild) box.removeChild(box.firstChild);
   state.today.endAt = null;
