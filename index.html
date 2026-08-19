@@ -357,7 +357,6 @@ var PETIT_SEARCH_URL = 'https://m.youtube.com/results?search_query=%E3%83%94%E3%
 var MAIN_LINK_URL = 'https://m.youtube.com/';
 
 var state = null;
-var vidCur = 0;
 var vidBaked = null;
 var quizAnswer = null;
 var quizAfter = null;
@@ -568,6 +567,15 @@ function parseYT(url){
   if (/^[\w-]{6,}$/.test(url)) return { kind: 'v', id: url };
   return null;
 }
+function curIndex(){
+  var v = state && state.today ? state.today.vidCur : 0;
+  return (typeof v === 'number' && v >= 0) ? v : 0;
+}
+function gotoIndex(i){
+  state.today.vidCur = i;
+  save();
+  location.reload();
+}
 function bakedFor(url){
   var p = parseYT(url), k;
   if (!p || p.kind !== 'list') return null;
@@ -579,7 +587,7 @@ function bakedFor(url){
 function playSrc(p){
   var it;
   if (vidBaked && vidBaked.items.length) {
-    it = vidBaked.items[vidCur];
+    it = vidBaked.items[curIndex()];
     if (it) {
       return 'https://www.youtube.com/embed/' + it.id +
         '?list=' + vidBaked.list +
@@ -843,17 +851,15 @@ function mountPlayer(c){
 }
 function vidJump(d){
   if (!vidBaked || !vidBaked.items.length) return;
-  var n = vidBaked.items.length;
-  vidCur = vidCur + d;
-  if (vidCur < 0) vidCur = n - 1;
-  if (vidCur >= n) vidCur = 0;
-  mountPlayer(videoConf());
+  var n = vidBaked.items.length, i = curIndex() + d;
+  if (i < 0) i = n - 1;
+  if (i >= n) i = 0;
+  gotoIndex(i);
 }
 function pickTapper(idx){
   return function(){
     $('ovPick').className = 'ov';
-    vidCur = idx;
-    mountPlayer(videoConf());
+    gotoIndex(idx);
   };
 }
 function openPick(){
@@ -863,7 +869,7 @@ function openPick(){
   for (i = 0; i < vidBaked.items.length; i++) {
     it = vidBaked.items[i];
     d = document.createElement('div');
-    d.className = 'pickItem' + (i === vidCur ? ' cur' : '');
+    d.className = 'pickItem' + (i === curIndex() ? ' cur' : '');
     im = document.createElement('img');
     im.setAttribute('src', 'https://i.ytimg.com/vi/' + it.id + '/mqdefault.jpg');
     im.setAttribute('alt', '');
@@ -879,7 +885,7 @@ function openPick(){
 }
 function startVideo(){
   var c = videoConf();
-  vidCur = 0;
+  state.today.vidCur = 0;
   state.today.endAt = Date.now() + Math.round(c.minutes * 60000);
   save();
   renderVideo();
