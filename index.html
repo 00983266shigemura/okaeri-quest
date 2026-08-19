@@ -83,8 +83,28 @@ body.bigvid { background:#000; }
 body.bigvid .screen { padding:0; background:#000; overflow:hidden; }
 body.bigvid #vidStartWrap, body.bigvid #vidNote,
 body.bigvid .v-title, body.bigvid .v-bar { display:none; }
-body.bigvid #vidBox { position:absolute; top:0; left:0; right:0; bottom:64px; }
-body.bigvid #vidBox iframe { width:100%; height:100%; max-height:none; border-radius:0; }
+body.bigvid #vidBox {
+  position:absolute; top:0; left:0; right:0; bottom:64px;
+  background-color:#000; background-repeat:no-repeat;
+  background-position:center center; background-size:contain;
+}
+body.bigvid #vidBox iframe {
+  width:100%; height:100%; max-height:none; border-radius:0; background:transparent;
+}
+#vidLoad { display:none; }
+body.bigvid #vidLoad {
+  display:block; position:absolute; left:0; right:0; bottom:76px;
+  text-align:center; z-index:4; pointer-events:none;
+}
+#vidLoad span {
+  display:inline-block; background:rgba(0,0,0,0.62); color:#F0E442;
+  font-size:20px; font-weight:bold; padding:8px 20px; border-radius:999px;
+}
+.loadDot { -webkit-animation:ldot 1.2s infinite; animation:ldot 1.2s infinite; }
+.loadDot2 { -webkit-animation-delay:0.2s; animation-delay:0.2s; }
+.loadDot3 { -webkit-animation-delay:0.4s; animation-delay:0.4s; }
+@-webkit-keyframes ldot { 0%,60%,100%{opacity:0.25} 30%{opacity:1} }
+@keyframes ldot { 0%,60%,100%{opacity:0.25} 30%{opacity:1} }
 body.bigvid .v-head { position:absolute; right:8px; bottom:0; height:64px; z-index:3; }
 body.bigvid .v-timer {
   position:absolute; left:12px; bottom:0; height:64px; margin:0; z-index:3;
@@ -204,6 +224,7 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
     <p class="note" id="vidStartNote" style="margin-top:12px"></p>
   </div>
   <div id="vidBox"></div>
+  <div id="vidLoad"><span>よみこみちゅう<b class="loadDot">.</b><b class="loadDot loadDot2">.</b><b class="loadDot loadDot3">.</b></span></div>
   <div class="v-ctrl" id="vidCtrl">
     <button class="ctrlBtn" id="btnVidPrev">&#9198; まえ</button>
     <button class="ctrlBtn" id="btnVidNext">&#9197; つぎ</button>
@@ -571,9 +592,22 @@ function curIndex(){
   var v = state && state.today ? state.today.vidCur : 0;
   return (typeof v === 'number' && v >= 0) ? v : 0;
 }
+function thumbUrl(idx){
+  var it = (vidBaked && vidBaked.items) ? vidBaked.items[idx] : null;
+  return it ? ('https://i.ytimg.com/vi/' + it.id + '/hqdefault.jpg') : '';
+}
+function showLoading(idx){
+  var u = thumbUrl(idx);
+  $('vidBox').style.backgroundImage = u ? ('url(' + u + ')') : 'none';
+  $('vidLoad').style.visibility = 'visible';
+}
+function hideLoading(){
+  $('vidLoad').style.visibility = 'hidden';
+}
 function gotoIndex(i){
   state.today.vidCur = i;
   save();
+  showLoading(i);
   location.reload();
 }
 function bakedFor(url){
@@ -591,7 +625,7 @@ function playSrc(p){
     if (it) {
       return 'https://www.youtube.com/embed/' + it.id +
         '?list=' + vidBaked.list +
-        '&playsinline=1&rel=0&autoplay=1&enablejsapi=1&controls=1';
+        '&playsinline=1&rel=0&autoplay=1&controls=1';
     }
   }
   return embedSrc(p);
@@ -829,6 +863,8 @@ function mountPlayer(c){
   while (box.firstChild) box.removeChild(box.firstChild);
   if (state.settings.mode === 'embed' && p) {
     var f = document.createElement('iframe');
+    showLoading(curIndex());
+    f.onload = function(){ setTimeout(hideLoading, 2500); };
     f.setAttribute('src', playSrc(p));
     f.setAttribute('allowfullscreen', 'true');
     box.appendChild(f);
@@ -893,6 +929,8 @@ function startVideo(){
 function endVideo(byTimer){
   var c = videoConf();
   setBigVid(false);
+  hideLoading();
+  $('vidBox').style.backgroundImage = 'none';
   var box = $('vidBox');
   while (box.firstChild) box.removeChild(box.firstChild);
   state.today.endAt = null;
