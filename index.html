@@ -72,8 +72,12 @@ button { font-family:inherit; }
 .v-head { display:-webkit-flex; display:flex; -webkit-justify-content:space-between; justify-content:space-between; -webkit-align-items:center; align-items:center; }
 .v-title { font-size:24px; color:#0072B2; font-weight:bold; }
 .v-timer { margin:10px 0 12px; }
-.v-bar { height:22px; background:#eee; border-radius:11px; overflow:hidden; border:2px solid #ddd; }
-.v-fill { height:100%; background:#56B4E9; border-radius:9px; }
+.v-ring { text-align:center; }
+.v-ring svg { display:inline-block; width:150px; height:150px; }
+.ringTrack { fill:none; stroke:#dcdcdc; stroke-width:11; }
+.ringArc { fill:none; stroke:#56B4E9; stroke-width:11; stroke-linecap:round; }
+.ringArc.warn { stroke:#E69F00; }
+.ringArc.last { stroke:#D55E00; }
 .v-remain { text-align:center; font-size:34px; font-weight:bold; color:#0072B2; margin-top:6px; }
 .v-center { text-align:center; padding:30px 10px; }
 #vidBox { text-align:center; }
@@ -82,7 +86,10 @@ button { font-family:inherit; }
 body.bigvid { background:#000; }
 body.bigvid .screen { padding:0; background:#000; overflow:hidden; }
 body.bigvid #vidStartWrap, body.bigvid #vidNote,
-body.bigvid .v-title, body.bigvid .v-bar { display:none; }
+body.bigvid .v-title { display:none; }
+body.bigvid .v-ring { margin-right:10px; }
+body.bigvid .v-ring svg { width:48px; height:48px; }
+body.bigvid .ringTrack { stroke:#5a5a5a; }
 body.bigvid #vidBox {
   position:absolute; top:0; left:0; right:0; bottom:64px;
   background-color:#000; background-repeat:no-repeat;
@@ -216,7 +223,12 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
     <button class="miniBtn" id="btnVidEnd">おしまいに する</button>
   </div>
   <div class="v-timer">
-    <div class="v-bar"><div class="v-fill" id="vidFill" style="width:100%"></div></div>
+    <div class="v-ring">
+      <svg viewBox="0 0 100 100">
+        <circle class="ringTrack" cx="50" cy="50" r="44"></circle>
+        <circle class="ringArc" id="ringArc" cx="50" cy="50" r="44" transform="rotate(-90 50 50)"></circle>
+      </svg>
+    </div>
     <div class="v-remain" id="vidRemain">--:--</div>
   </div>
   <div class="v-center" id="vidStartWrap">
@@ -850,7 +862,7 @@ function renderVideo(){
     $('vidStartWrap').style.display = 'block';
     $('vidStartNote').textContent = c.minutes + 'ふん みられるよ。じゅんびが できたら スタート！';
     $('vidRemain').textContent = fmtRemain(c.minutes * 60000);
-    $('vidFill').style.width = '100%';
+    setRing(c.minutes * 60000, c.minutes * 60000);
   } else {
     $('vidStartWrap').style.display = 'none';
     mountPlayer(c);
@@ -952,6 +964,21 @@ function endVideo(byTimer){
     render();
   }
 }
+function setRing(remain, total){
+  var arc = $('ringArc'), C, r;
+  if (!arc) return;
+  C = 276.46;
+  if (arc.getTotalLength) {
+    try { C = arc.getTotalLength(); } catch (e) {}
+  }
+  r = total > 0 ? remain / total : 0;
+  if (r < 0) r = 0;
+  if (r > 1) r = 1;
+  arc.setAttribute('stroke-dasharray', C.toFixed(2));
+  arc.setAttribute('stroke-dashoffset', (C * (1 - r)).toFixed(2));
+  arc.setAttribute('class', 'ringArc' +
+    (remain <= 60000 ? ' last' : (remain <= 300000 ? ' warn' : '')));
+}
 function fmtRemain(ms){
   if (ms < 0) ms = 0;
   var s = Math.ceil(ms / 1000);
@@ -970,9 +997,7 @@ function tick(){
     var remain = state.today.endAt - Date.now();
     var total = c.minutes * 60000;
     $('vidRemain').textContent = fmtRemain(remain);
-    var pct = total > 0 ? (remain / total) * 100 : 0;
-    if (pct < 0) pct = 0; if (pct > 100) pct = 100;
-    $('vidFill').style.width = pct + '%';
+    setRing(remain, total);
     if (remain <= 0) endVideo(true);
   }
 }
