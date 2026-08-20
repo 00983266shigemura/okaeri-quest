@@ -91,7 +91,7 @@ body.bigvid .v-ring { margin-right:10px; }
 body.bigvid .v-ring svg { width:48px; height:48px; }
 body.bigvid .ringTrack { stroke:#5a5a5a; }
 body.bigvid #vidBox {
-  position:absolute; top:0; left:0; right:0; bottom:64px;
+  position:absolute; top:0; left:0; right:0; bottom:108px;
   background-color:#000; background-repeat:no-repeat;
   background-position:center center; background-size:contain;
 }
@@ -100,8 +100,13 @@ body.bigvid #vidBox iframe {
 }
 #vidLoad { display:none; }
 body.bigvid #vidLoad {
-  display:block; position:absolute; left:0; right:0; bottom:76px;
+  display:block; position:absolute; left:0; right:0; bottom:120px;
   text-align:center; z-index:4; pointer-events:none;
+}
+#vidHint { display:none; position:absolute; left:0; right:0; top:40%; text-align:center; z-index:4; pointer-events:none; }
+#vidHint span {
+  display:inline-block; background:rgba(0,0,0,0.62); color:#fff;
+  font-size:21px; font-weight:bold; padding:10px 22px; border-radius:999px;
 }
 #vidLoad span {
   display:inline-block; background:rgba(0,0,0,0.62); color:#F0E442;
@@ -127,6 +132,42 @@ body.bigvid .v-ctrl {
   font-size:19px; font-weight:bold; padding:11px 20px; margin:0 5px; cursor:pointer;
 }
 .ctrlBtn:active { background:#5a5a5a; }
+
+/* 再生位置バー（大画面時のみ表示） */
+.v-seek { display:none; }
+body.bigvid .v-seek {
+  display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center;
+  position:absolute; left:0; right:0; bottom:64px; height:44px; z-index:2; padding:0 8px;
+}
+.seekBtn {
+  border:0; background:#333; color:#fff; border-radius:10px;
+  font-size:17px; font-weight:bold; padding:9px 11px; margin:0 4px; cursor:pointer;
+}
+.seekBtn:active { background:#5a5a5a; }
+.seekTime { color:#eee; font-size:14px; width:48px; text-align:center; }
+#seekBar { -webkit-flex:1; flex:1; height:36px; position:relative; cursor:pointer; margin:0 2px; }
+#seekBar .sTrack { position:absolute; left:0; right:0; top:15px; height:6px; border-radius:3px; background:#5a5a5a; }
+#seekBar .sFill { position:absolute; left:0; top:15px; height:6px; border-radius:3px; background:#56B4E9; width:0; }
+#seekBar .sKnob {
+  position:absolute; top:8px; left:0; width:20px; height:20px; border-radius:50%;
+  background:#fff; margin-left:-10px; box-shadow:0 1px 3px rgba(0,0,0,0.4);
+}
+
+/* スタンプカード */
+#scrStamp .stampMsg { text-align:center; font-size:21px; line-height:1.7; margin:4px 0 12px; }
+#scrStamp .stampMsg .sp { color:#0072B2; font-weight:bold; }
+.stampCard {
+  max-width:560px; margin:0 auto; background:#fff;
+  border:3px solid #E69F00; border-radius:22px; padding:12px 8px;
+  text-align:center; box-shadow:0 3px 0 rgba(230,159,0,0.35);
+}
+.stSlot {
+  display:inline-block; width:72px; height:72px; margin:6px;
+  border:3px dashed #ccc; border-radius:50%;
+  font-size:38px; line-height:68px; color:#ccc; background:#fafafa; vertical-align:top;
+}
+.stSlot.got { border:3px solid #E69F00; background:#FFF6DC; color:#3a3a3a; }
+.stSlot.pop { -webkit-animation:pop 0.5s ease-out; animation:pop 0.5s ease-out; }
 
 .pickGrid { text-align:center; margin-bottom:10px; }
 .pickItem { display:inline-block; width:200px; margin:8px; vertical-align:top; cursor:pointer; }
@@ -237,6 +278,14 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
   </div>
   <div id="vidBox"></div>
   <div id="vidLoad"><span>よみこみちゅう<b class="loadDot">.</b><b class="loadDot loadDot2">.</b><b class="loadDot loadDot3">.</b></span></div>
+  <div id="vidHint"><span>どうがを タップして スタート！</span></div>
+  <div class="v-seek" id="vidSeek">
+    <button class="seekBtn" id="btnBack10">&#9194; 10</button>
+    <span class="seekTime" id="seekCur">0:00</span>
+    <div id="seekBar"><div class="sTrack"></div><div class="sFill" id="seekFill"></div><div class="sKnob" id="seekKnob"></div></div>
+    <span class="seekTime" id="seekDur">-:--</span>
+    <button class="seekBtn" id="btnFwd10">10 &#9193;</button>
+  </div>
   <div class="v-ctrl" id="vidCtrl">
     <button class="ctrlBtn" id="btnVidPrev">&#9198; まえ</button>
     <button class="ctrlBtn" id="btnVidNext">&#9197; つぎ</button>
@@ -252,6 +301,18 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
     <div class="hd-progress" id="hdProgAfter"></div>
   </div>
   <div class="cards" id="afterCards"></div>
+</div>
+
+<div class="screen" id="scrStamp">
+  <div class="hd">
+    <div class="hd-date"></div>
+    <h1 class="hd-title">スタンプカード</h1>
+  </div>
+  <div class="stampMsg" id="stampMsg"></div>
+  <div class="stampCard" id="stampCard"></div>
+  <div class="v-center">
+    <button class="bigBtn orange" id="btnStampGo">おやすみへ ▶</button>
+  </div>
 </div>
 
 <div class="screen" id="scrNight">
@@ -305,46 +366,22 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
 <div class="ov" id="ovSettings">
   <div class="ov-panel">
     <h2>せってい（おうちのひと用）</h2>
+    <p class="note">タスク・時間・動画などの設定は、パソコン側のファイルで管理しています。この画面からは変更できません（記録の確認と、やり直しだけできます）。</p>
 
-    <label>帰宅後のタスク（1行に1つ。「絵文字 なまえ」の形）</label>
-    <textarea id="setMain" rows="8"></textarea>
-
-    <label>ごほうび後のタスク（1行に1つ）</label>
-    <textarea id="setAfter" rows="3"></textarea>
-
-    <div class="grid2">
-      <label>ごほうび動画（分）<br><input type="number" id="setReward"></label>
-      <label>プチごほうび（分）<br><input type="number" id="setPetit"></label>
-    </div>
-
-    <label class="chk" style="margin-top:14px;"><input type="checkbox" id="setBonusOn"> いつもの平均より早く終わったらボーナス時間を足す</label>
-    <div class="grid3">
-      <label>何分早いごとに<br><input type="number" id="setStep"></label>
-      <label>+何分<br><input type="number" id="setPer"></label>
-      <label>上限（分）<br><input type="number" id="setCap"></label>
-    </div>
-    <p class="note" id="avgInfo" style="margin-top:6px;"></p>
-
-    <label>ごほうび動画のURL（YouTubeの動画か再生リストのURLを貼る）</label>
-    <input type="text" id="setUrlMain" placeholder="https://www.youtube.com/watch?v=...">
-
-    <label>プチごほうび動画のURL（ピタゴラスイッチ等）</label>
-    <input type="text" id="setUrlPetit" placeholder="https://www.youtube.com/playlist?list=...">
-
-    <label>動画の見せ方</label>
-    <label class="chk"><input type="radio" name="mode" id="modeEmbed"> このアプリの中で再生する（時間が来たら自動で止まる）</label>
-    <label class="chk"><input type="radio" name="mode" id="modeLink"> YouTubeを開く（自動では止まらない。残り時間はこの画面に出る）</label>
+    <h3>スタンプ</h3>
+    <p class="note" id="stampInfo"></p>
 
     <h3>これまでの きろく</h3>
+    <p class="note" id="avgInfo"></p>
     <p class="note" id="histBox"></p>
 
     <div class="row wrap" style="text-align:left;">
       <button class="setBtn" id="btnResetToday">きょうを やりなおす</button>
       <button class="setBtn" id="btnClearHist">きろくを 全部消す</button>
+      <button class="setBtn" id="btnClearStamp">スタンプを 全部消す</button>
     </div>
     <div class="row" style="margin-top:14px;">
       <button class="bigBtn gray" id="btnCloseSet">とじる</button>
-      <button class="bigBtn" id="btnSaveSet">ほぞん</button>
     </div>
   </div>
 </div>
@@ -357,8 +394,10 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
 'use strict';
 
 var LS_KEY = 'okaeriQuest_v1';
-var CONFIG_VERSION = 2;
-var FILE_MANAGED = ['videoMain', 'videoPetit'];
+/* 設定は全てこのファイル(DEFAULT_SETTINGS)で管理する。
+   変更したら CONFIG_VERSION を +1 すると、端末に保存済みの設定を全て上書きする。
+   （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
+var CONFIG_VERSION = 3;
 var VIDEO_LISTS = {"main":{"list":"UUC4107WX_cYsJ80fWjR5Hjw","items":[{"id":"rZZLqEwtT20","t":"ついに昆虫展に「むし岡コーナー」を作ってきたぜ！！！！"},{"id":"NVmitiDUK4M","t":"【衝撃】カブトムシ1匹を腐葉土の中に入れると・・・"},{"id":"fsNrV69ulJk","t":"セミが大量に採れる季節がはじまりました！！！！"},{"id":"QP5cMuTthKc","t":"夏休み限定！世界の昆虫たちが集まる昆虫展がスゴすぎる！"},{"id":"OaP8pPgqMIs","t":"いまのガチャガチャってこんなことになってんの？www"},{"id":"yVQdFIksZlg","t":"昆虫採集ってこういうのでいいんだよ"},{"id":"jar39uoSkNY","t":"新グッズ&夏のイベントのお知らせ！"},{"id":"PRJudDCokkk","t":"カブトムシが200匹放たれる夏休み限定の昆虫展がヤバい！！"},{"id":"rltxGvnfwYU","t":"これが噂のネギトラップ！その威力をご覧あれ！！！"},{"id":"K5pqVbSG55w","t":"河川敷のカブトムシ・クワガタはこうやって探せ！！！！！"},{"id":"bGG7GnP4oGo","t":"【大量】この季節の昆虫採集は河川敷がアツい！！！！！！"},{"id":"ODdGk4kc7mY","t":"八王子の新しい昆虫ショップが最高すぎる！！！！"},{"id":"HaIbB9JTJaQ","t":"ずっと会いたかった虫がそこにいたのです"},{"id":"M0o5d9hP6ek","t":"大ピンチです。ご協力よろしくお願いいたします。"},{"id":"AgxVlpQ1Nmw","t":"危険すぎるクワガタを飼育します"}]},"petit":{"list":"UU6cXcs9jEmAx9qPx6ubWWkg","items":[{"id":"Dv42PzK8Aps","t":"「もりのおく」ピタゴラスイッチカバー つながりうた Eテレ オリジナルアニメーション"},{"id":"4xZ0B1g3LUI","t":"「たまご会議」 おとなのピタゴラスイッチ  Eテレ オリジナルアニメーション"},{"id":"LETUJ2ArTcg","t":"「こたつたこ」なぞなぞ編 おとなのピタゴラスイッチ 回文の歌 Eテレ オリジナルアニメーション"},{"id":"meKen0btf-c","t":"ビーだまビーすけの大冒険スペシャル全部入り+追加場面あり音質調整版 E-テレ NHK ピタゴラスイッチカバー"},{"id":"H6pPoYO10hg","t":"るかろか ピタゴラスイッチ Eテレ NHK けいのチァンネル"},{"id":"806eNZXFhT0","t":"効率第一ダンドリオン お掃除編 ピタゴラスイッチ好きなら必見！Eテレ新番組テキシコーより和牛のお二人によるアニメ Eテレ NHK"},{"id":"N0r5WlkdSh4","t":"パタトクカシー おとなのピタゴラスイッチ Eテレ オリジナルアニメーション"},{"id":"lz5K5aSnZXw","t":"「こたつたこ」その2 おとなのピタゴラスイッチ 回文の歌 Eテレ オリジナルアニメーション"},{"id":"lC2hxHBEqXI","t":"しめじソート おとなのピタゴラスイッチ Eテレ マージソート"},{"id":"ULrh9saGwAg","t":"ぽんほんぼんの歌 おとなのピタゴラスイッチ Eテレ オリジナルアニメーション"},{"id":"SwCbDgiCpTQ","t":"ビーだまビーすけの大冒険ファイナル ビーすけと黒玉王子の大脱出 おとなのピタゴラスイッチ Eテレ NHK"},{"id":"cZzjXk25W9E","t":"びーだまびーすけの大冒険 Ep3 プロローグ おとなのピタゴラスイッチ MarbleB suke Great Adventure Episode3 Prologue Eテレ NHK"},{"id":"dqaAC0EpwYU","t":"アルゴリズム体操 ピタゴラスイッチ あっちむいて二人でまえならえ"},{"id":"P_tYwzXUPvc","t":"ビーだまビーすけの大冒険番外編 黒玉軍のピタゴラ装置 おとなのピタゴラスイッチ Eテレ NHK"},{"id":"otobyfuehmc","t":"「こたつたこ」おとなのピタゴラスイッチ Eテレ 回文の歌 オリジナルアニメーション"}]}};
 
 var DEFAULT_SETTINGS = {
@@ -383,7 +422,9 @@ var DEFAULT_SETTINGS = {
   bonusCap: 30,
   videoMain: 'https://www.youtube.com/playlist?list=UUC4107WX_cYsJ80fWjR5Hjw',
   videoPetit: 'https://www.youtube.com/playlist?list=UU6cXcs9jEmAx9qPx6ubWWkg',
-  mode: 'embed'
+  mode: 'embed',
+  stampGoal: 10,
+  rewards: ['カブトムシロボ']
 };
 
 var PETIT_SEARCH_URL = 'https://m.youtube.com/results?search_query=%E3%83%94%E3%82%BF%E3%82%B4%E3%83%A9%E3%82%B9%E3%82%A4%E3%83%83%E3%83%81';
@@ -412,15 +453,16 @@ function load(){
   if (!state || !state.settings) {
     state = { settings: copyOf(DEFAULT_SETTINGS), history: [], today: null };
   }
-  var k, i;
+  var k;
   for (k in DEFAULT_SETTINGS) {
     if (state.settings[k] === undefined) state.settings[k] = copyOf(DEFAULT_SETTINGS[k]);
   }
   if (!state.history) state.history = [];
+  if (typeof state.stamps !== 'number') state.stamps = 0;
+  if (typeof state.rewardsGot !== 'number') state.rewardsGot = 0;
+  if (state.lastStampDate === undefined) state.lastStampDate = '';
   if (state.configVersion !== CONFIG_VERSION) {
-    for (i = 0; i < FILE_MANAGED.length; i++) {
-      state.settings[FILE_MANAGED[i]] = copyOf(DEFAULT_SETTINGS[FILE_MANAGED[i]]);
-    }
+    state.settings = copyOf(DEFAULT_SETTINGS);
     state.configVersion = CONFIG_VERSION;
     save();
   }
@@ -608,13 +650,15 @@ function thumbUrl(idx){
   var it = (vidBaked && vidBaked.items) ? vidBaked.items[idx] : null;
   return it ? ('https://i.ytimg.com/vi/' + it.id + '/hqdefault.jpg') : '';
 }
+function setLoadUI(mode){
+  /* mode: 'load'=よみこみちゅう表示 / 'hint'=タップ案内 / 'play'=どちらも消す */
+  $('vidLoad').style.visibility = (mode === 'load') ? 'visible' : 'hidden';
+  $('vidHint').style.display = (mode === 'hint') ? 'block' : 'none';
+}
 function showLoading(idx){
   var u = thumbUrl(idx);
   $('vidBox').style.backgroundImage = u ? ('url(' + u + ')') : 'none';
-  $('vidLoad').style.visibility = 'visible';
-}
-function hideLoading(){
-  $('vidLoad').style.visibility = 'hidden';
+  setLoadUI('load');
 }
 function gotoIndex(i){
   state.today.vidCur = i;
@@ -630,6 +674,7 @@ function bakedFor(url){
   }
   return null;
 }
+var EMBED_EXTRA = '&enablejsapi=1&iv_load_policy=3';
 function playSrc(p){
   var it;
   if (vidBaked && vidBaked.items.length) {
@@ -637,15 +682,108 @@ function playSrc(p){
     if (it) {
       return 'https://www.youtube.com/embed/' + it.id +
         '?list=' + vidBaked.list +
-        '&playsinline=1&rel=0&autoplay=1&controls=1';
+        '&playsinline=1&rel=0&autoplay=1&controls=1' + EMBED_EXTRA;
     }
   }
   return embedSrc(p);
 }
 function embedSrc(p){
-  if (p.kind === 'list') return 'https://www.youtube.com/embed/videoseries?list=' + p.id + '&playsinline=1&rel=0';
-  return 'https://www.youtube.com/embed/' + p.id + '?playsinline=1&rel=0';
+  if (p.kind === 'list') return 'https://www.youtube.com/embed/videoseries?list=' + p.id + '&playsinline=1&rel=0' + EMBED_EXTRA;
+  return 'https://www.youtube.com/embed/' + p.id + '?playsinline=1&rel=0' + EMBED_EXTRA;
 }
+
+/* ---------- プレーヤー遠隔操作（iframe内のYouTubeへ postMessage で命令を送る） ---------- */
+var ytLive = false;    /* プレーヤーからの返事を一度でも受け取ったか */
+var ytPlayed = false;  /* 一度でも再生が始まったか */
+var ytDur = 0, ytCur = 0, ytState = -2, mountAt = 0, seekFrac = null;
+function vidFrame(){
+  var f = $('vidBox').getElementsByTagName('iframe');
+  return (f && f.length) ? f[0] : null;
+}
+function ytPost(obj){
+  var f = vidFrame();
+  if (!f || !f.contentWindow) return;
+  try { f.contentWindow.postMessage(JSON.stringify(obj), '*'); } catch(e){}
+}
+function ytCmd(func, args){ ytPost({ event: 'command', func: func, args: args || [] }); }
+function ytHello(){ ytPost({ event: 'listening', id: 1, channel: 'widget' }); }
+function ytCaptionsOff(){
+  ytCmd('unloadModule', ['captions']);
+  ytCmd('unloadModule', ['cc']);
+}
+window.addEventListener('message', function(ev){
+  if (typeof ev.data !== 'string') return;
+  if (String(ev.origin).indexOf('youtube') < 0) return;
+  var d;
+  try { d = JSON.parse(ev.data); } catch(e){ return; }
+  if (!d || !d.event) return;
+  ytLive = true;
+  if (d.event === 'onReady') ytCaptionsOff();
+  if (d.info) {
+    if (typeof d.info.duration === 'number') ytDur = d.info.duration;
+    if (typeof d.info.currentTime === 'number' && seekFrac === null) ytCur = d.info.currentTime;
+    if (typeof d.info.playerState === 'number') {
+      ytState = d.info.playerState;
+      if (ytState === 1) {
+        if (!ytPlayed) { ytPlayed = true; ytCaptionsOff(); }
+        setLoadUI('play');
+      }
+    }
+  }
+}, false);
+function fmtSec(sec){
+  var s = Math.floor(sec), m = Math.floor(s / 60);
+  s = s % 60;
+  return m + ':' + (s < 10 ? '0' : '') + s;
+}
+function updateSeekUI(){
+  var frac = (seekFrac !== null) ? seekFrac : (ytDur > 0 ? ytCur / ytDur : 0);
+  if (frac < 0) frac = 0;
+  if (frac > 1) frac = 1;
+  $('seekFill').style.width = (frac * 100) + '%';
+  $('seekKnob').style.left = (frac * 100) + '%';
+  $('seekCur').textContent = fmtSec((seekFrac !== null && ytDur > 0) ? seekFrac * ytDur : ytCur);
+  $('seekDur').textContent = ytDur > 0 ? fmtSec(ytDur) : '-:--';
+}
+function seekPosFromEvent(ev){
+  var r = $('seekBar').getBoundingClientRect(), x;
+  if (ev.changedTouches && ev.changedTouches.length) x = ev.changedTouches[0].clientX;
+  else x = ev.clientX;
+  var f = r.width > 0 ? (x - r.left) / r.width : 0;
+  if (f < 0) f = 0;
+  if (f > 1) f = 1;
+  return f;
+}
+function commitSeek(f){
+  seekFrac = null;
+  if (ytDur > 0) {
+    var t = f * ytDur;
+    if (t > ytDur - 2) t = ytDur - 2;
+    if (t < 0) t = 0;
+    ytCur = t;
+    ytCmd('seekTo', [t, true]);
+    ytCmd('playVideo');
+  }
+  updateSeekUI();
+}
+function seekBy(d){
+  if (!(ytDur > 0)) return;
+  var t = ytCur + d;
+  if (t < 0) t = 0;
+  if (t > ytDur - 2) t = ytDur - 2;
+  ytCur = t;
+  ytCmd('seekTo', [t, true]);
+  ytCmd('playVideo');
+  updateSeekUI();
+}
+(function(){
+  var bar = $('seekBar');
+  function onTouch(ev){ ev.preventDefault(); seekFrac = seekPosFromEvent(ev); updateSeekUI(); }
+  bar.addEventListener('touchstart', onTouch, false);
+  bar.addEventListener('touchmove', onTouch, false);
+  bar.addEventListener('touchend', function(ev){ ev.preventDefault(); commitSeek(seekPosFromEvent(ev)); }, false);
+  bar.addEventListener('click', function(ev){ commitSeek(seekPosFromEvent(ev)); }, false);
+})();
 
 /* ---------- ボーナス計算 ---------- */
 function pastFinishes(){
@@ -681,7 +819,7 @@ function fmtHM(min){
 
 /* ---------- 画面切替 ---------- */
 function showScreen(id){
-  var ids = ['scrMain','scrVideo','scrAfter','scrNight'], i;
+  var ids = ['scrMain','scrVideo','scrAfter','scrStamp','scrNight'], i;
   if (id !== 'scrVideo') setBigVid(false);
   for (i = 0; i < ids.length; i++) {
     if (ids[i] === id) $(ids[i]).className = 'screen on';
@@ -873,10 +1011,12 @@ function mountPlayer(c){
   vidBaked = bakedFor(c.url);
   $('vidCtrl').style.display = (vidBaked && vidBaked.items.length) ? '' : 'none';
   while (box.firstChild) box.removeChild(box.firstChild);
+  ytLive = false; ytPlayed = false; ytDur = 0; ytCur = 0; ytState = -2; seekFrac = null;
+  mountAt = Date.now();
+  updateSeekUI();
   if (state.settings.mode === 'embed' && p) {
     var f = document.createElement('iframe');
     showLoading(curIndex());
-    f.onload = function(){ setTimeout(hideLoading, 2500); };
     f.setAttribute('src', playSrc(p));
     f.setAttribute('allowfullscreen', 'true');
     box.appendChild(f);
@@ -941,7 +1081,7 @@ function startVideo(){
 function endVideo(byTimer){
   var c = videoConf();
   setBigVid(false);
-  hideLoading();
+  setLoadUI('play');
   $('vidBox').style.backgroundImage = 'none';
   var box = $('vidBox');
   while (box.firstChild) box.removeChild(box.firstChild);
@@ -958,7 +1098,7 @@ function endVideo(byTimer){
       onBtn: function(){ hideCeleb(); }
     });
   } else {
-    state.today.phase = 'night';
+    state.today.phase = 'stamp';
     save();
     if (byTimer) sndTimeUp();
     render();
@@ -998,7 +1138,18 @@ function tick(){
     var total = c.minutes * 60000;
     $('vidRemain').textContent = fmtRemain(remain);
     setRing(remain, total);
-    if (remain <= 0) endVideo(true);
+    if (remain <= 0) { endVideo(true); return; }
+    if (vidFrame()) {
+      if (!ytLive) ytHello();
+      var el = Date.now() - mountAt;
+      if (ytState === 1) {
+        setLoadUI('play');
+      } else if (!ytPlayed && (el > 8000 || (ytLive && el > 2500 && ytState !== 3))) {
+        /* 自動再生が始まらない（古いiOSは自動再生を止めることがある）→ タップ案内へ切替 */
+        setLoadUI('hint');
+      }
+      updateSeekUI();
+    }
   }
 }
 
@@ -1027,6 +1178,11 @@ function render(){
       showCeleb(celeb2Contents());
       sndSmallFanfare();
     }
+  } else if (ph === 'stamp') {
+    showScreen('scrStamp');
+    var isNew = awardStampIfNeeded();
+    buildStampCard(isNew);
+    if (isNew) sndSmallFanfare();
   } else if (ph === 'night') {
     showScreen('scrNight');
     drawNight();
@@ -1041,44 +1197,52 @@ function drawNight(){
   sndNight();
 }
 
-/* ---------- 設定 ---------- */
-function tasksToText(tasks){
-  var out = [], i;
-  for (i = 0; i < tasks.length; i++) out.push(tasks[i].e + ' ' + tasks[i].t);
-  return out.join('\n');
+/* ---------- スタンプ（毎日最後まで完了で1個・たまるとスペシャルごほうび） ---------- */
+function rewardName(){
+  var r = state.settings.rewards;
+  return (r && r.length > state.rewardsGot) ? r[state.rewardsGot] : 'スペシャルごほうび';
 }
-function textToTasks(text){
-  var lines = text.split('\n'), out = [], i, line, sp, e, t;
-  for (i = 0; i < lines.length; i++) {
-    line = lines[i].replace(/^\s+|\s+$/g, '');
-    if (!line) continue;
-    sp = line.indexOf(' ');
-    if (sp < 0) sp = line.indexOf('　');
-    if (sp > 0) {
-      e = line.substring(0, sp).replace(/^\s+|\s+$/g, '');
-      t = line.substring(sp + 1).replace(/^\s+|\s+$/g, '');
-      if (/[ぁ-んァ-ヶ一-龥a-zA-Z0-9]/.test(e)) { e = '⭐'; t = line; }
+function awardStampIfNeeded(){
+  if (state.lastStampDate === state.today.date) return false;
+  state.lastStampDate = state.today.date;
+  state.stamps++;
+  save();
+  return true;
+}
+function buildStampCard(isNew){
+  var box = $('stampCard'), goal = state.settings.stampGoal, i, s;
+  while (box.firstChild) box.removeChild(box.firstChild);
+  for (i = 0; i < goal; i++) {
+    s = document.createElement('div');
+    if (i < state.stamps) {
+      s.className = 'stSlot got' + ((isNew && i === state.stamps - 1) ? ' pop' : '');
+      s.textContent = '⭐';
     } else {
-      e = '⭐'; t = line;
+      s.className = 'stSlot';
+      s.textContent = String(i + 1);
     }
-    if (t) out.push({ e: e, t: t });
+    box.appendChild(s);
   }
-  return out;
+  var m = $('stampMsg'), d1, d2;
+  while (m.firstChild) m.removeChild(m.firstChild);
+  d1 = document.createElement('div');
+  d1.textContent = 'きょうの スタンプ ゲット！';
+  d2 = document.createElement('div');
+  d2.className = 'sp';
+  if (state.stamps >= goal) {
+    d2.textContent = goal + 'こ たまった！！';
+  } else {
+    d2.textContent = 'あと ' + (goal - state.stamps) + 'こで 「' + rewardName() + '」！';
+  }
+  m.appendChild(d1);
+  m.appendChild(d2);
+  $('btnStampGo').textContent = (state.stamps >= goal) ? 'ごほうびを うけとる ▶' : 'おやすみへ ▶';
 }
+
+/* ---------- 設定（表示のみ。設定値の変更はこのファイルをPCで書き換える） ---------- */
 function openSettings(){
-  var st = state.settings;
-  $('setMain').value = tasksToText(st.mainTasks);
-  $('setAfter').value = tasksToText(st.afterTasks);
-  $('setReward').value = st.rewardMin;
-  $('setPetit').value = st.petitMin;
-  $('setBonusOn').checked = !!st.bonusOn;
-  $('setStep').value = st.bonusStep;
-  $('setPer').value = st.bonusPer;
-  $('setCap').value = st.bonusCap;
-  $('setUrlMain').value = st.videoMain;
-  $('setUrlPetit').value = st.videoPetit;
-  $('modeEmbed').checked = st.mode === 'embed';
-  $('modeLink').checked = st.mode === 'link';
+  $('stampInfo').textContent = 'いま ' + state.stamps + '個／' + state.settings.stampGoal +
+    '個。たまったら「' + rewardName() + '」。スペシャルごほうび獲得 ' + state.rewardsGot + '回。';
   var avg = avgFinish(), n = pastFinishes().length;
   if (avg === null) {
     $('avgInfo').textContent = '記録が3回たまるとボーナス判定が動きます（いま ' + n + '回）。';
@@ -1096,34 +1260,6 @@ function openSettings(){
   hb.textContent = lines.length ? lines.join('\n') : 'まだ記録がありません。';
   hb.style.whiteSpace = 'pre-line';
   $('ovSettings').className = 'ov on';
-}
-function saveSettings(){
-  var st = state.settings;
-  var mt = textToTasks($('setMain').value);
-  var at = textToTasks($('setAfter').value);
-  if (mt.length) st.mainTasks = mt;
-  if (at.length) st.afterTasks = at;
-  st.rewardMin = clampNum($('setReward').value, 1, 180, 30);
-  st.petitMin = clampNum($('setPetit').value, 1, 60, 10);
-  st.bonusOn = $('setBonusOn').checked;
-  st.bonusStep = clampNum($('setStep').value, 1, 60, 5);
-  st.bonusPer = clampNum($('setPer').value, 1, 30, 5);
-  st.bonusCap = clampNum($('setCap').value, 0, 120, 30);
-  st.videoMain = $('setUrlMain').value.replace(/^\s+|\s+$/g, '');
-  st.videoPetit = $('setUrlPetit').value.replace(/^\s+|\s+$/g, '');
-  st.mode = $('modeLink').checked ? 'link' : 'embed';
-  if (state.today.doneMain.length > st.mainTasks.length) state.today.doneMain.length = st.mainTasks.length;
-  if (state.today.doneAfter.length > st.afterTasks.length) state.today.doneAfter.length = st.afterTasks.length;
-  save();
-  $('ovSettings').className = 'ov';
-  render();
-}
-function clampNum(v, min, max, def){
-  var n = parseFloat(v);
-  if (isNaN(n)) return def;
-  if (n < min) return min;
-  if (n > max) return max;
-  return n;
 }
 function openQuiz(after){
   var a = 2 + Math.floor(Math.random() * 8), b = 2 + Math.floor(Math.random() * 8);
@@ -1151,7 +1287,32 @@ bindTap($('btnVidEnd'), function(){
 bindTap($('btnVidPrev'), function(){ vidJump(-1); });
 bindTap($('btnVidNext'), function(){ vidJump(1); });
 bindTap($('btnVidPick'), openPick);
+bindTap($('btnBack10'), function(){ seekBy(-10); });
+bindTap($('btnFwd10'), function(){ seekBy(10); });
 bindTap($('pickClose'), function(){ $('ovPick').className = 'ov'; });
+bindTap($('btnStampGo'), function(){
+  if (state.stamps >= state.settings.stampGoal) {
+    var name = rewardName();
+    state.stamps = 0;
+    state.rewardsGot++;
+    save();
+    confetti();
+    sndFanfare();
+    showCeleb({
+      emoji: '🎁', title: 'スペシャルごほうび！',
+      lines: [
+        { text: '「' + name + '」を ゲット！！', bold: true },
+        { text: 'おうちのひとから うけとってね' }
+      ],
+      btn: 'おやすみへ ▶',
+      onBtn: function(){ state.today.phase = 'night'; save(); render(); }
+    });
+  } else {
+    state.today.phase = 'night';
+    save();
+    render();
+  }
+});
 bindTap($('btnGear'), function(){ openQuiz(openSettings); });
 $('quizOk').addEventListener('click', function(){
   if (parseInt($('quizA').value, 10) === quizAnswer) {
@@ -1163,13 +1324,16 @@ $('quizOk').addEventListener('click', function(){
   }
 }, false);
 $('quizCancel').addEventListener('click', function(){ $('ovQuiz').className = 'ov'; }, false);
-$('btnSaveSet').addEventListener('click', saveSettings, false);
 $('btnCloseSet').addEventListener('click', function(){ $('ovSettings').className = 'ov'; }, false);
 $('btnResetToday').addEventListener('click', function(){
   if (window.confirm('今日のチェックを全部消して最初からにします。いいですか？')) {
     var i;
     for (i = 0; i < state.history.length; i++) {
       if (state.history[i].date === state.today.date) { state.history.splice(i, 1); break; }
+    }
+    if (state.lastStampDate === state.today.date) {
+      state.lastStampDate = '';
+      if (state.stamps > 0) state.stamps--;
     }
     state.today = null;
     nightDrawn = '';
@@ -1182,6 +1346,14 @@ $('btnResetToday').addEventListener('click', function(){
 $('btnClearHist').addEventListener('click', function(){
   if (window.confirm('これまでの記録（終わり時刻の履歴）を全部消します。いいですか？')) {
     state.history = [];
+    save();
+    openSettings();
+  }
+}, false);
+$('btnClearStamp').addEventListener('click', function(){
+  if (window.confirm('スタンプを全部消して0個からにします。いいですか？（獲得済みのスペシャルごほうびの回数は残ります）')) {
+    state.stamps = 0;
+    state.lastStampDate = '';
     save();
     openSettings();
   }
