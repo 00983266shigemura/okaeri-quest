@@ -367,7 +367,6 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
     <p class="note" id="stampInfo"></p>
 
     <h3>これまでの きろく</h3>
-    <p class="note" id="avgInfo"></p>
     <p class="note" id="histBox"></p>
 
     <div class="row wrap" style="text-align:left;">
@@ -392,7 +391,7 @@ var LS_KEY = 'okaeriQuest_v1';
 /* 設定は全てこのファイル(DEFAULT_SETTINGS)で管理する。
    変更したら CONFIG_VERSION を +1 すると、端末に保存済みの設定を全て上書きする。
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var CONFIG_VERSION = 3;
+var CONFIG_VERSION = 4;
 var VIDEO_LISTS = {"main":{"list":"UUC4107WX_cYsJ80fWjR5Hjw","items":[{"id":"rZZLqEwtT20","t":"ついに昆虫展に「むし岡コーナー」を作ってきたぜ！！！！"},{"id":"NVmitiDUK4M","t":"【衝撃】カブトムシ1匹を腐葉土の中に入れると・・・"},{"id":"fsNrV69ulJk","t":"セミが大量に採れる季節がはじまりました！！！！"},{"id":"QP5cMuTthKc","t":"夏休み限定！世界の昆虫たちが集まる昆虫展がスゴすぎる！"},{"id":"OaP8pPgqMIs","t":"いまのガチャガチャってこんなことになってんの？www"},{"id":"yVQdFIksZlg","t":"昆虫採集ってこういうのでいいんだよ"},{"id":"jar39uoSkNY","t":"新グッズ&夏のイベントのお知らせ！"},{"id":"PRJudDCokkk","t":"カブトムシが200匹放たれる夏休み限定の昆虫展がヤバい！！"},{"id":"rltxGvnfwYU","t":"これが噂のネギトラップ！その威力をご覧あれ！！！"},{"id":"K5pqVbSG55w","t":"河川敷のカブトムシ・クワガタはこうやって探せ！！！！！"},{"id":"bGG7GnP4oGo","t":"【大量】この季節の昆虫採集は河川敷がアツい！！！！！！"},{"id":"ODdGk4kc7mY","t":"八王子の新しい昆虫ショップが最高すぎる！！！！"},{"id":"HaIbB9JTJaQ","t":"ずっと会いたかった虫がそこにいたのです"},{"id":"M0o5d9hP6ek","t":"大ピンチです。ご協力よろしくお願いいたします。"},{"id":"AgxVlpQ1Nmw","t":"危険すぎるクワガタを飼育します"}]},"petit":{"list":"UU6cXcs9jEmAx9qPx6ubWWkg","items":[{"id":"Dv42PzK8Aps","t":"「もりのおく」ピタゴラスイッチカバー つながりうた Eテレ オリジナルアニメーション"},{"id":"4xZ0B1g3LUI","t":"「たまご会議」 おとなのピタゴラスイッチ  Eテレ オリジナルアニメーション"},{"id":"LETUJ2ArTcg","t":"「こたつたこ」なぞなぞ編 おとなのピタゴラスイッチ 回文の歌 Eテレ オリジナルアニメーション"},{"id":"meKen0btf-c","t":"ビーだまビーすけの大冒険スペシャル全部入り+追加場面あり音質調整版 E-テレ NHK ピタゴラスイッチカバー"},{"id":"H6pPoYO10hg","t":"るかろか ピタゴラスイッチ Eテレ NHK けいのチァンネル"},{"id":"806eNZXFhT0","t":"効率第一ダンドリオン お掃除編 ピタゴラスイッチ好きなら必見！Eテレ新番組テキシコーより和牛のお二人によるアニメ Eテレ NHK"},{"id":"N0r5WlkdSh4","t":"パタトクカシー おとなのピタゴラスイッチ Eテレ オリジナルアニメーション"},{"id":"lz5K5aSnZXw","t":"「こたつたこ」その2 おとなのピタゴラスイッチ 回文の歌 Eテレ オリジナルアニメーション"},{"id":"lC2hxHBEqXI","t":"しめじソート おとなのピタゴラスイッチ Eテレ マージソート"},{"id":"ULrh9saGwAg","t":"ぽんほんぼんの歌 おとなのピタゴラスイッチ Eテレ オリジナルアニメーション"},{"id":"SwCbDgiCpTQ","t":"ビーだまビーすけの大冒険ファイナル ビーすけと黒玉王子の大脱出 おとなのピタゴラスイッチ Eテレ NHK"},{"id":"cZzjXk25W9E","t":"びーだまびーすけの大冒険 Ep3 プロローグ おとなのピタゴラスイッチ MarbleB suke Great Adventure Episode3 Prologue Eテレ NHK"},{"id":"dqaAC0EpwYU","t":"アルゴリズム体操 ピタゴラスイッチ あっちむいて二人でまえならえ"},{"id":"P_tYwzXUPvc","t":"ビーだまビーすけの大冒険番外編 黒玉軍のピタゴラ装置 おとなのピタゴラスイッチ Eテレ NHK"},{"id":"otobyfuehmc","t":"「こたつたこ」おとなのピタゴラスイッチ Eテレ 回文の歌 オリジナルアニメーション"}]}};
 
 var DEFAULT_SETTINGS = {
@@ -407,14 +406,12 @@ var DEFAULT_SETTINGS = {
   ],
   afterTasks: [
     {e:'😁', t:'はを みがく'},
-    {e:'💦', t:'かおを あらう'}
+    {e:'💦', t:'かおを あらう'},
+    {e:'🐾', t:'ペットの おせわ'},
+    {e:'🎒', t:'あしたの じゅんび'}
   ],
   rewardMin: 30,
   petitMin: 10,
-  bonusOn: true,
-  bonusStep: 5,
-  bonusPer: 5,
-  bonusCap: 30,
   videoMain: 'https://www.youtube.com/playlist?list=UUC4107WX_cYsJ80fWjR5Hjw',
   videoPetit: 'https://www.youtube.com/playlist?list=UU6cXcs9jEmAx9qPx6ubWWkg',
   mode: 'embed',
@@ -485,7 +482,7 @@ function ensureToday(){
     state.today = {
       date: t, phase: 'main',
       doneMain: [], doneAfter: [],
-      finishMin: null, bonus: 0, diffEarly: 0, earned: null,
+      finishMin: null,
       endAt: null
     };
     save();
@@ -791,33 +788,6 @@ function seekBy(d){
   bar.addEventListener('click', function(ev){ commitSeek(seekPosFromEvent(ev)); }, false);
 })();
 
-/* ---------- ボーナス計算 ---------- */
-function pastFinishes(){
-  var arr = [], i, h;
-  for (i = 0; i < state.history.length; i++) {
-    h = state.history[i];
-    if (h.date !== state.today.date && typeof h.finishMin === 'number') arr.push(h.finishMin);
-  }
-  if (arr.length > 14) arr = arr.slice(arr.length - 14);
-  return arr;
-}
-function avgFinish(){
-  var arr = pastFinishes(), i, s = 0;
-  if (arr.length < 3) return null;
-  for (i = 0; i < arr.length; i++) s += arr[i];
-  return s / arr.length;
-}
-function calcBonus(fm){
-  var st = state.settings;
-  if (!st.bonusOn) return { bonus: 0, diff: 0 };
-  var avg = avgFinish();
-  if (avg === null) return { bonus: 0, diff: 0 };
-  var diff = Math.floor(avg - fm);
-  if (diff < st.bonusStep) return { bonus: 0, diff: diff > 0 ? diff : 0 };
-  var b = Math.floor(diff / st.bonusStep) * st.bonusPer;
-  if (b > st.bonusCap) b = st.bonusCap;
-  return { bonus: b, diff: diff };
-}
 function fmtHM(min){
   var h = Math.floor(min / 60), m = Math.round(min % 60);
   return h + ':' + (m < 10 ? '0' : '') + m;
@@ -934,19 +904,15 @@ function completeMain(){
   if (state.today.phase !== 'main') return;
   var d = new Date();
   var fm = d.getHours() * 60 + d.getMinutes();
-  var r = calcBonus(fm);
   state.today.finishMin = fm;
-  state.today.bonus = r.bonus;
-  state.today.diffEarly = r.diff;
-  state.today.earned = state.settings.rewardMin + r.bonus;
   var i, found = false;
   for (i = 0; i < state.history.length; i++) {
     if (state.history[i].date === state.today.date) {
-      state.history[i] = { date: state.today.date, finishMin: fm, bonus: r.bonus };
+      state.history[i] = { date: state.today.date, finishMin: fm };
       found = true; break;
     }
   }
-  if (!found) state.history.push({ date: state.today.date, finishMin: fm, bonus: r.bonus });
+  if (!found) state.history.push({ date: state.today.date, finishMin: fm });
   if (state.history.length > 60) state.history = state.history.slice(state.history.length - 60);
   state.today.phase = 'celeb1';
   save();
@@ -954,11 +920,7 @@ function completeMain(){
 }
 function celeb1Contents(){
   var lines = [{ text: 'ぜんぶ できた！すごい！' }];
-  if (state.today.bonus > 0) {
-    lines.push({ text: 'いつもより ' + state.today.diffEarly + 'ふん はやい！', bold: true });
-    lines.push({ text: 'ボーナス ＋' + state.today.bonus + 'ふん！', bold: true });
-  }
-  lines.push({ text: 'どうがタイム ' + state.today.earned + 'ふん！' });
+  lines.push({ text: 'どうがタイム ' + state.settings.rewardMin + 'ふん！' });
   return {
     hanamaru: true, title: 'はなまる！', lines: lines,
     btn: 'どうがタイムへ ▶',
@@ -985,7 +947,7 @@ function videoConf(){
   if (state.today.phase === 'video1') {
     return {
       kind: 1, title: 'どうがタイム',
-      minutes: state.today.earned !== null ? state.today.earned : state.settings.rewardMin,
+      minutes: state.settings.rewardMin,
       url: state.settings.videoMain, linkFallback: MAIN_LINK_URL
     };
   }
@@ -1253,19 +1215,13 @@ function buildStampCard(isNew){
 function openSettings(){
   $('stampInfo').textContent = 'いま ' + state.stamps + '個／' + state.settings.stampGoal +
     '個。たまったら「' + rewardName() + '」。スペシャルごほうび獲得 ' + state.rewardsGot + '回。';
-  var avg = avgFinish(), n = pastFinishes().length;
-  if (avg === null) {
-    $('avgInfo').textContent = '記録が3回たまるとボーナス判定が動きます（いま ' + n + '回）。';
-  } else {
-    $('avgInfo').textContent = 'いつもの終わり時刻（直近' + n + '回の平均）= ' + fmtHM(avg);
-  }
   var hb = $('histBox'), i, h, lines = [];
   var hist = state.history.slice();
   hist.reverse();
   if (hist.length > 14) hist = hist.slice(0, 14);
   for (i = 0; i < hist.length; i++) {
     h = hist[i];
-    lines.push(h.date + '　' + fmtHM(h.finishMin) + ' に完了' + (h.bonus > 0 ? '（ボーナス +' + h.bonus + '分）' : ''));
+    lines.push(h.date + '　' + fmtHM(h.finishMin) + ' に完了');
   }
   hb.textContent = lines.length ? lines.join('\n') : 'まだ記録がありません。';
   hb.style.whiteSpace = 'pre-line';
