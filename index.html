@@ -92,11 +92,15 @@ body.bigvid .v-ring svg { width:48px; height:48px; }
 body.bigvid .ringTrack { stroke:#5a5a5a; }
 body.bigvid #vidBox {
   position:absolute; top:0; left:0; right:0; bottom:108px;
+  overflow:hidden;
   background-color:#000; background-repeat:no-repeat;
   background-position:center center; background-size:contain;
 }
+/* 古いiOSは枠の大きさを割合(100%)で決められず、中身に合わせて広がってしまう。
+   はみ出すと再生ボタンが画面の外へずれるので、実寸(px)をJSで入れて固定する。 */
 body.bigvid #vidBox iframe {
-  width:100%; height:100%; max-height:none; border-radius:0; background:transparent;
+  position:absolute; top:0; left:0;
+  max-height:none; border-radius:0; background:transparent;
 }
 #vidLoad { display:none; }
 body.bigvid #vidLoad {
@@ -699,6 +703,18 @@ function embedSrc(p){
 var ytLive = false;    /* プレーヤーからの返事を一度でも受け取ったか */
 var ytPlayed = false;  /* 一度でも再生が始まったか */
 var ytDur = 0, ytCur = 0, ytState = -2, mountAt = 0, seekFrac = null;
+function fitPlayer(){
+  /* 動画の枠を、表示できる範囲の実寸(px)にそろえる。
+     古いiOSは割合指定だと枠を広げすぎ、再生ボタンが画面の隅で見切れるため。 */
+  var f = vidFrame(), box = $('vidBox'), w, h;
+  if (!f) return;
+  w = box.clientWidth;
+  h = box.clientHeight;
+  if (w <= 0 || h <= 0) return;
+  /* 食い違ったときだけ書き換える（毎秒呼ばれても無駄がない） */
+  if (f.style.width !== w + 'px') f.style.width = w + 'px';
+  if (f.style.height !== h + 'px') f.style.height = h + 'px';
+}
 function vidFrame(){
   var f = $('vidBox').getElementsByTagName('iframe');
   return (f && f.length) ? f[0] : null;
@@ -987,9 +1003,15 @@ function mountPlayer(c){
     showLoading(curIndex());
     f.setAttribute('src', playSrc(p));
     f.setAttribute('allowfullscreen', 'true');
+    f.setAttribute('scrolling', 'no');
+    f.setAttribute('frameborder', '0');
     box.appendChild(f);
-    $('vidNote').textContent = 'じかんが きたら じどうで おわるよ。';
     setBigVid(true);
+    fitPlayer();
+    /* 画面の向きや大きさが確定するのが一拍あとになる端末があるため、少し置いて測り直す */
+    setTimeout(fitPlayer, 300);
+    setTimeout(fitPlayer, 1200);
+    $('vidNote').textContent = 'じかんが きたら じどうで おわるよ。';
   } else {
     setBigVid(false);
     var a = document.createElement('a');
@@ -1111,6 +1133,8 @@ function tick(){
     setRing(remain, total);
     if (remain <= 0) { endVideo(true); return; }
     if (vidFrame()) {
+      /* 古いiOSは画面回転の通知が来ないことがあるため、毎回そろえ直す */
+      fitPlayer();
       if (!ytLive) ytHello();
       var el = Date.now() - mountAt;
       if (ytState === 1) {
@@ -1324,6 +1348,10 @@ $('btnClearStamp').addEventListener('click', function(){
     openSettings();
   }
 }, false);
+
+/* 画面を回した・大きさが変わったときも枠を測り直す（iPadの縦横回転） */
+window.addEventListener('resize', function(){ setTimeout(fitPlayer, 120); }, false);
+window.addEventListener('orientationchange', function(){ setTimeout(fitPlayer, 400); }, false);
 
 /* ---------- 起動 ---------- */
 load();
