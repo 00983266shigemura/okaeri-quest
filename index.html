@@ -103,11 +103,7 @@ body.bigvid #vidLoad {
   display:block; position:absolute; left:0; right:0; bottom:120px;
   text-align:center; z-index:4; pointer-events:none;
 }
-#vidTap { display:none; position:absolute; left:0; right:0; top:36%; text-align:center; z-index:5; }
-#vidTap p {
-  color:#fff; font-size:18px; font-weight:bold; margin-top:10px;
-  text-shadow:0 1px 3px rgba(0,0,0,0.9);
-}
+#vidLoad span.tap { background:rgba(0,0,0,0.78); color:#fff; }
 #vidLoad span {
   display:inline-block; background:rgba(0,0,0,0.62); color:#F0E442;
   font-size:20px; font-weight:bold; padding:8px 20px; border-radius:999px;
@@ -277,11 +273,7 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
     <p class="note" id="vidStartNote" style="margin-top:12px"></p>
   </div>
   <div id="vidBox"></div>
-  <div id="vidLoad"><span>よみこみちゅう<b class="loadDot">.</b><b class="loadDot loadDot2">.</b><b class="loadDot loadDot3">.</b></span></div>
-  <div id="vidTap">
-    <button class="bigBtn orange" id="btnVidTap">▶ さいせい</button>
-    <p>ボタンを おしてね</p>
-  </div>
+  <div id="vidLoad"><span id="vidLoadMsg">よみこみちゅう<b class="loadDot">.</b><b class="loadDot loadDot2">.</b><b class="loadDot loadDot3">.</b></span></div>
   <div class="v-seek" id="vidSeek">
     <button class="seekBtn" id="btnBack10">&#9194; 10</button>
     <span class="seekTime" id="seekCur">0:00</span>
@@ -654,17 +646,18 @@ function thumbUrl(idx){
   return it ? ('https://i.ytimg.com/vi/' + it.id + '/hqdefault.jpg') : '';
 }
 function setLoadUI(mode){
-  /* mode: 'load'=よみこみちゅう表示 / 'tap'=再生ボタン表示 / 'play'=どちらも消す */
-  $('vidLoad').style.visibility = (mode === 'load') ? 'visible' : 'hidden';
-  $('vidTap').style.display = (mode === 'tap') ? 'block' : 'none';
-}
-function showTapToPlay(idx){
-  /* iOSはタップ直後でないと再生を始めないため、iframeを作る前に必ずタップを挟む。
-     背景に次の動画の絵を出すので、黒画面のまま待たされることが原理的に起きない。 */
-  var u = thumbUrl(idx);
-  $('vidBox').style.backgroundImage = u ? ('url(' + u + ')') : 'none';
-  setBigVid(true);
-  setLoadUI('tap');
+  /* mode: 'load'=よみこみちゅう / 'tap'=動画をタップしての案内 / 'play'=消す。
+     iOSは動画そのものへのタップでしか再生を始めない（自前のボタンでは代われない）ので、
+     案内は「動画をタップして」と伝えるだけにし、指のじゃまをしない（pointer-events:none）。 */
+  var msg = $('vidLoadMsg');
+  $('vidLoad').style.visibility = (mode === 'play') ? 'hidden' : 'visible';
+  if (mode === 'tap') {
+    msg.className = 'tap';
+    msg.textContent = 'どうがを タップすると はじまるよ';
+  } else if (mode === 'load') {
+    msg.className = '';
+    msg.textContent = 'よみこみちゅう...';
+  }
 }
 function showLoading(idx){
   var u = thumbUrl(idx);
@@ -693,7 +686,9 @@ function playSrc(p){
     if (it) {
       return 'https://www.youtube.com/embed/' + it.id +
         '?list=' + vidBaked.list +
-        '&playsinline=1&rel=0&autoplay=1&controls=1' + EMBED_EXTRA;
+        /* autoplay は付けない。iOSでは効かないうえ、再生に失敗したプレーヤーが
+           サムネイルも出さず黒いまま固まるため（黒画面の原因）。 */
+        '&playsinline=1&rel=0&controls=1' + EMBED_EXTRA;
     }
   }
   return embedSrc(p);
@@ -729,7 +724,7 @@ window.addEventListener('message', function(ev){
   try { d = JSON.parse(ev.data); } catch(e){ return; }
   if (!d || !d.event) return;
   ytLive = true;
-  if (d.event === 'onReady') { ytCaptionsOff(); if (!ytPlayed) ytCmd('playVideo'); }
+  if (d.event === 'onReady') ytCaptionsOff();
   if (d.info) {
     if (typeof d.info.duration === 'number') ytDur = d.info.duration;
     if (typeof d.info.currentTime === 'number' && seekFrac === null) ytCur = d.info.currentTime;
@@ -1014,12 +1009,7 @@ function renderVideo(){
     setRing(c.minutes * 60000, c.minutes * 60000);
   } else {
     $('vidStartWrap').style.display = 'none';
-    /* ここはページを読み込み直した直後＝タップの直後ではないので、
-       iframeを作らずに再生ボタンを出す（作ってもiOSが再生を始めず黒画面になるため）。 */
-    vidBaked = bakedFor(c.url);
-    $('vidCtrl').style.display = (vidBaked && vidBaked.items.length) ? '' : 'none';
-    $('vidNote').textContent = '';
-    showTapToPlay(curIndex());
+    mountPlayer(c);
   }
 }
 function mountPlayer(c){
@@ -1163,9 +1153,9 @@ function tick(){
       var el = Date.now() - mountAt;
       if (ytState === 1) {
         setLoadUI('play');
-      } else if (!ytPlayed && (el > 8000 || (ytLive && el > 2500 && ytState !== 3))) {
-        /* 保険: タップ直後に作ったのに再生が始まらないとき（回線が遅い等）も、
-           押せる再生ボタンを出す。文字の案内だけでは子どもが何もできないため。 */
+      } else if (ytLive || el > 4000) {
+        /* 読み込みが済んだら「動画をタップして」の案内に切り替える。
+           再生が始まれば上の分岐で消える。 */
         setLoadUI('tap');
       }
       updateSeekUI();
@@ -1307,15 +1297,6 @@ bindTap($('btnVidEnd'), function(){
 bindTap($('btnVidPrev'), function(){ vidJump(-1); });
 bindTap($('btnVidNext'), function(){ vidJump(1); });
 bindTap($('btnVidPick'), openPick);
-bindTap($('btnVidTap'), function(){
-  setLoadUI('play');
-  if (vidFrame()) {
-    /* 既に読み込み済み＝命令だけ送る（作り直すと2本目以降が黒くなるiOS10の不具合を避ける） */
-    ytCmd('playVideo');
-  } else {
-    mountPlayer(videoConf());
-  }
-});
 bindTap($('btnBack10'), function(){ seekBy(-10); });
 bindTap($('btnFwd10'), function(){ seekBy(10); });
 bindTap($('pickClose'), function(){ $('ovPick').className = 'ov'; });
