@@ -397,7 +397,7 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 5;
+var APP_VERSION = 6;
 var VIDEO_LISTS = {"main":{"list":"UUC4107WX_cYsJ80fWjR5Hjw","items":[{"id":"rZZLqEwtT20","t":"ついに昆虫展に「むし岡コーナー」を作ってきたぜ！！！！"},{"id":"NVmitiDUK4M","t":"【衝撃】カブトムシ1匹を腐葉土の中に入れると・・・"},{"id":"fsNrV69ulJk","t":"セミが大量に採れる季節がはじまりました！！！！"},{"id":"QP5cMuTthKc","t":"夏休み限定！世界の昆虫たちが集まる昆虫展がスゴすぎる！"},{"id":"OaP8pPgqMIs","t":"いまのガチャガチャってこんなことになってんの？www"},{"id":"yVQdFIksZlg","t":"昆虫採集ってこういうのでいいんだよ"},{"id":"jar39uoSkNY","t":"新グッズ&夏のイベントのお知らせ！"},{"id":"PRJudDCokkk","t":"カブトムシが200匹放たれる夏休み限定の昆虫展がヤバい！！"},{"id":"rltxGvnfwYU","t":"これが噂のネギトラップ！その威力をご覧あれ！！！"},{"id":"K5pqVbSG55w","t":"河川敷のカブトムシ・クワガタはこうやって探せ！！！！！"},{"id":"bGG7GnP4oGo","t":"【大量】この季節の昆虫採集は河川敷がアツい！！！！！！"},{"id":"ODdGk4kc7mY","t":"八王子の新しい昆虫ショップが最高すぎる！！！！"},{"id":"HaIbB9JTJaQ","t":"ずっと会いたかった虫がそこにいたのです"},{"id":"M0o5d9hP6ek","t":"大ピンチです。ご協力よろしくお願いいたします。"},{"id":"AgxVlpQ1Nmw","t":"危険すぎるクワガタを飼育します"}]},"petit":{"list":"UU6cXcs9jEmAx9qPx6ubWWkg","items":[{"id":"Dv42PzK8Aps","t":"「もりのおく」ピタゴラスイッチカバー つながりうた Eテレ オリジナルアニメーション"},{"id":"4xZ0B1g3LUI","t":"「たまご会議」 おとなのピタゴラスイッチ  Eテレ オリジナルアニメーション"},{"id":"LETUJ2ArTcg","t":"「こたつたこ」なぞなぞ編 おとなのピタゴラスイッチ 回文の歌 Eテレ オリジナルアニメーション"},{"id":"meKen0btf-c","t":"ビーだまビーすけの大冒険スペシャル全部入り+追加場面あり音質調整版 E-テレ NHK ピタゴラスイッチカバー"},{"id":"H6pPoYO10hg","t":"るかろか ピタゴラスイッチ Eテレ NHK けいのチァンネル"},{"id":"806eNZXFhT0","t":"効率第一ダンドリオン お掃除編 ピタゴラスイッチ好きなら必見！Eテレ新番組テキシコーより和牛のお二人によるアニメ Eテレ NHK"},{"id":"N0r5WlkdSh4","t":"パタトクカシー おとなのピタゴラスイッチ Eテレ オリジナルアニメーション"},{"id":"lz5K5aSnZXw","t":"「こたつたこ」その2 おとなのピタゴラスイッチ 回文の歌 Eテレ オリジナルアニメーション"},{"id":"lC2hxHBEqXI","t":"しめじソート おとなのピタゴラスイッチ Eテレ マージソート"},{"id":"ULrh9saGwAg","t":"ぽんほんぼんの歌 おとなのピタゴラスイッチ Eテレ オリジナルアニメーション"},{"id":"SwCbDgiCpTQ","t":"ビーだまビーすけの大冒険ファイナル ビーすけと黒玉王子の大脱出 おとなのピタゴラスイッチ Eテレ NHK"},{"id":"cZzjXk25W9E","t":"びーだまびーすけの大冒険 Ep3 プロローグ おとなのピタゴラスイッチ MarbleB suke Great Adventure Episode3 Prologue Eテレ NHK"},{"id":"dqaAC0EpwYU","t":"アルゴリズム体操 ピタゴラスイッチ あっちむいて二人でまえならえ"},{"id":"P_tYwzXUPvc","t":"ビーだまビーすけの大冒険番外編 黒玉軍のピタゴラ装置 おとなのピタゴラスイッチ Eテレ NHK"},{"id":"otobyfuehmc","t":"「こたつたこ」おとなのピタゴラスイッチ Eテレ 回文の歌 オリジナルアニメーション"}]}};
 
 var DEFAULT_SETTINGS = {
@@ -467,10 +467,18 @@ function load(){
 }
 
 /* ---------- 新しい版が出ていたら取り直す ----------
+   正規のURLは「?」より前の元のURL。ホーム画面のアイコンも元のURLのままでよい。
    iPadは一度読んだファイルをしばらく持ち続けるため、放っておくと直しが届かない。
-   起動時にサーバの version.txt（持ち回しを避けるため毎回ちがうURLで読む）を見て、
-   こちらが古ければ「?v=新しい数字」のURLへ移る。URLが変わるので必ず新しく取り直される。
-   しげがURLを打ち替える必要はない（アプリが自分で移る）。 */
+   そこで起動時にサーバの version.txt（持ち回しを避けるため毎回ちがうURLで読む）を見て、
+   こちらが古ければ「?v=新しい数字」へ一時的に回り道し、新しいファイルを取り直す。
+   取り直したら tidyUrl() でアドレスを元のURLへ戻すので、余計な文字は残らない。 */
+var UPD_KEY = 'okaeriUpd';
+function tidyUrl(){
+  /* 回り道の跡（?v=…）をアドレスから消す。表示だけを直すので再読み込みは起きない。 */
+  if (!window.history || !history.replaceState) return;
+  if (location.search.indexOf('v=') < 0) return;
+  try { history.replaceState(null, '', location.pathname); } catch(e){}
+}
 function checkUpdate(){
   var x;
   if (!window.XMLHttpRequest) return;
@@ -478,12 +486,17 @@ function checkUpdate(){
   try { x.open('GET', 'version.txt?t=' + (new Date()).getTime(), true); } catch(e){ return; }
   x.onreadystatechange = function(){
     if (x.readyState !== 4 || x.status !== 200) return;
-    var v = parseInt(String(x.responseText).replace(/[^0-9]/g, ''), 10), done = null;
+    var v = parseInt(String(x.responseText).replace(/[^0-9]/g, ''), 10);
+    var now = (new Date()).getTime(), last = null, part;
     if (!(v > APP_VERSION)) return;
-    /* 同じ数字への移動は1回だけ（万一の堂々めぐりを防ぐ） */
-    try { done = sessionStorage.getItem('okaeriUpd'); } catch(e){}
-    if (done === String(v)) return;
-    try { sessionStorage.setItem('okaeriUpd', String(v)); } catch(e){}
+    /* 直前30秒に同じ行き先へ移っていたら止める（万一の堂々めぐり防止）。
+       時刻で判定するので、あとで開き直したときの正しい更新までは止めない。 */
+    try { last = sessionStorage.getItem(UPD_KEY); } catch(e){}
+    if (last) {
+      part = String(last).split(':');
+      if (part[0] === String(v) && (now - parseInt(part[1], 10)) < 30000) return;
+    }
+    try { sessionStorage.setItem(UPD_KEY, v + ':' + now); } catch(e){}
     location.replace('./?v=' + v);
   };
   try { x.send(); } catch(e){}
@@ -1383,6 +1396,7 @@ load();
 ensureToday();
 render();
 setInterval(tick, 500);
+tidyUrl();
 checkUpdate();
 
 })();
