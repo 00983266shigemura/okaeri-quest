@@ -482,7 +482,7 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 9;
+var APP_VERSION = 10;
 
 /* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
    上の APP_VERSION と隣り合っていると、版数を上げたときに
@@ -865,7 +865,9 @@ function setVidUI(mode){
   } else if (mode === 'ready') {
     msg.textContent = 'タップすると はじまるよ';
   } else if (mode === 'fail') {
-    msg.textContent = 'いま どうがを よべなかったよ';
+    /* 「失敗」と言い切らない＝この後に返事が来ればすぐ ready へ戻る（待つのはやめていない）。
+       子どもが待たされ続けないよう、押せる手をここで出す。 */
+    msg.textContent = 'まだ はじまらないね。もういちど おしてみて';
     $('covDiag').textContent = vidDiag();
     logVid('fail');
   }
@@ -874,9 +876,14 @@ function setVidUI(mode){
    ふだんの画面には出さない（子どものじゃまをしない）。 */
 function vidDiag(){
   var f = vidFrame();
-  return 'へんじ=' + (ytLive ? 'あり' : 'なし') +
+  /* 「わくよみこみ」が肝＝ここが「済」なら、YouTubeのページ自体は届いているのに
+     中のプレーヤーが動いていない。「未」なら、そもそもページが届いていない。
+     この2つは原因がまったく違うので、必ず区別できるようにしておく。 */
+  return 'わくよみこみ=' + (frameLoaded ? ('済' + Math.round(frameLoadMs / 1000) + 'びょう') : '未') +
+    ' / へんじ=' + (ytLive ? 'あり' : 'なし') +
     ' / じょうたい=' + ytState +
     ' / けいか=' + Math.round((Date.now() - mountAt) / 1000) + 'びょう' +
+    ' / よびかた=' + vidStrategy() +
     ' / わく=' + (f ? (f.style.width + 'x' + f.style.height) : 'なし') +
     ' / え=' + (thumbOk === null ? '?' : (thumbOk ? 'よめた' : 'よめない'));
 }
@@ -887,9 +894,12 @@ function logVid(result){
   state.vidLog.push({
     t: (new Date()).toLocaleString('ja-JP'),
     r: result,
+    fl: frameLoaded ? 1 : 0,
+    flms: frameLoadMs,
     live: ytLive ? 1 : 0,
     st: ytState,
     ms: Date.now() - mountAt,
+    tr: vidStrategy(),
     id: it ? it.id : ''
   });
   if (state.vidLog.length > 10) state.vidLog = state.vidLog.slice(state.vidLog.length - 10);
@@ -926,19 +936,48 @@ function bakedFor(url){
   return null;
 }
 var EMBED_EXTRA = '&enablejsapi=1&iv_load_policy=3';
+/* 呼び方を3通り用意し、うまくいかないときに順ぐりに変える。
+   なぜ起動しないことがあるのかは未解明のため、条件を1つずつ変えて記録に残し、
+   どれで直るかを実機の事実から突き止める（推測で決め打ちしない）。
+     0 = これまでどおり（再生リスト付き・いちばん重い）
+     1 = 再生リストを外して1本だけ（軽い）
+     2 = 広告追跡なしの入口（youtube-nocookie）で1本だけ
+   3通りだめなら別の動画へ移る（その動画だけの問題かを切り分けるため）。 */
+var VID_TRY_MAX = 3;
+function vidStrategy(){
+  var t = (state && typeof state.vidTry === 'number') ? state.vidTry : 0;
+  return t % VID_TRY_MAX;
+}
 function playSrc(p){
-  var it;
+  var it, s = vidStrategy(), host, q;
   if (vidBaked && vidBaked.items.length) {
     it = vidBaked.items[curIndex()];
     if (it) {
-      return 'https://www.youtube.com/embed/' + it.id +
-        '?list=' + vidBaked.list +
-        /* autoplay は付けない。iOSでは効かないうえ、再生に失敗したプレーヤーが
-           サムネイルも出さず黒いまま固まるため（黒画面の原因）。 */
-        '&playsinline=1&rel=0&controls=1' + EMBED_EXTRA;
+      host = (s === 2) ? 'https://www.youtube-nocookie.com/embed/' : 'https://www.youtube.com/embed/';
+      /* autoplay は付けない。iOSでは効かないうえ、再生に失敗したプレーヤーが
+         サムネイルも出さず黒いまま固まるため（黒画面の原因）。 */
+      q = '?playsinline=1&rel=0&controls=1' + EMBED_EXTRA;
+      if (s === 0) q = '?list=' + vidBaked.list + '&playsinline=1&rel=0&controls=1' + EMBED_EXTRA;
+      return host + it.id + q;
     }
   }
   return embedSrc(p);
+}
+/* 「もういちど」＝呼び方を次の手へ変えて読み込み直す。
+   同じ呼び方で読み直しても直らないことが実機で分かっているため（2026-08-23しげ実測
+   「何度も『もういちど』になり、解消されない」）、同じことを繰り返さない。 */
+function retryVideo(){
+  var t = (state && typeof state.vidTry === 'number') ? state.vidTry : 0;
+  t = t + 1;
+  if (t >= VID_TRY_MAX) {
+    state.vidTry = 0;
+    save();
+    vidJump(1);   /* 3通りだめ＝別の動画にする（この中で保存と読み直しをする） */
+    return;
+  }
+  state.vidTry = t;
+  save();
+  location.reload();
 }
 function embedSrc(p){
   if (p.kind === 'list') return 'https://www.youtube.com/embed/videoseries?list=' + p.id + '&playsinline=1&rel=0' + EMBED_EXTRA;
@@ -949,6 +988,10 @@ function embedSrc(p){
 var ytLive = false;    /* プレーヤーからの返事を一度でも受け取ったか */
 var ytPlayed = false;  /* 一度でも再生が始まったか */
 var ytDur = 0, ytCur = 0, ytState = -2, mountAt = 0, seekFrac = null;
+/* 枠（iframe）そのものが読み込めたか。中身は別サイトなので読めないが、
+   読み込みが終わった合図（onload）だけは受け取れる。
+   これが「済」なのに返事が無い＝ページは届いたが中のプレーヤーが動いていない、と分かる。 */
+var frameLoaded = false, frameLoadMs = 0;
 /* 動画を置く四角を「16:9ちょうど・まんなか」で求める。
    枠を表示範囲いっぱい（16:9でない形）にすると、YouTube側が中で上下に黒帯を作る計算をする。
    古いiOSではその計算どおりに再生ボタンが描かれず、隅へずれたり出なかったりする。
@@ -1010,7 +1053,11 @@ window.addEventListener('message', function(ev){
     if (typeof d.info.playerState === 'number') {
       ytState = d.info.playerState;
       if (ytState === 1) {
-        if (!ytPlayed) { ytPlayed = true; ytCaptionsOff(); logVid('ok'); }
+        if (!ytPlayed) {
+          ytPlayed = true; ytCaptionsOff(); logVid('ok');
+          /* うまくいった呼び方を次回の既定に戻す（次はいちばん良い形から始める） */
+          if (state.vidTry) { state.vidTry = 0; save(); }
+        }
         setVidUI('play');
       }
     }
@@ -1292,6 +1339,7 @@ function mountPlayer(c){
   $('vidCtrl').style.display = (vidBaked && vidBaked.items.length) ? '' : 'none';
   while (box.firstChild) box.removeChild(box.firstChild);
   ytLive = false; ytPlayed = false; ytDur = 0; ytCur = 0; ytState = -2; seekFrac = null;
+  frameLoaded = false; frameLoadMs = 0;
   mountAt = Date.now();
   updateSeekUI();
   if (state.settings.mode === 'embed' && p) {
@@ -1312,6 +1360,11 @@ function mountPlayer(c){
     f.setAttribute('allowfullscreen', 'true');
     f.setAttribute('scrolling', 'no');
     f.setAttribute('frameborder', '0');
+    /* 中身は別サイトなので読めないが、読み込みが終わった合図だけは受け取れる。
+       これがあるか無いかで「ページが届いていない」と「届いたが動いていない」を切り分ける。 */
+    f.onload = function(){
+      if (!frameLoaded) { frameLoaded = true; frameLoadMs = Date.now() - mountAt; }
+    };
     f.setAttribute('src', playSrc(p));
     box.appendChild(f);
     fitPlayer();
@@ -1561,8 +1614,11 @@ function openSettings(){
   for (j = 0; j < vl.length; j++) {
     v = vl[j];
     vlines.push(v.t + '　' + (v.r === 'ok' ? '再生できた' : '始まらなかった') +
-      '　YouTubeの返事=' + (v.live ? 'あり' : 'なし') +
-      '　状態=' + v.st + '　' + Math.round(v.ms / 1000) + '秒' +
+      '　枠読込=' + (v.fl ? ('済' + Math.round((v.flms || 0) / 1000) + '秒') : '未') +
+      '　返事=' + (v.live ? 'あり' : 'なし') +
+      '　状態=' + v.st +
+      '　呼び方=' + (typeof v.tr === 'number' ? v.tr : '?') +
+      '　' + Math.round(v.ms / 1000) + '秒' +
       (v.id ? ('　' + v.id) : ''));
   }
   vb.textContent = vlines.length ? vlines.join('\n') : 'まだ記録がありません。';
@@ -1602,9 +1658,9 @@ bindTap($('btnVidEnd'), function(){
     if (yes) endVideo(false);
   });
 });
-/* 「もういちど」＝ページごと読み込み直して、動画を作り直す
+/* 「もういちど」＝呼び方を次の手へ変えて作り直す（同じことを繰り返さない）
    （古いiOSは再生中の枠を作り替えると2本目以降が黒くなるため、作り直しは常にページごと） */
-bindTap($('btnVidRetry'), function(){ location.reload(); });
+bindTap($('btnVidRetry'), retryVideo);
 bindTap($('btnVidPrev'), function(){ vidJump(-1); });
 bindTap($('btnVidNext'), function(){ vidJump(1); });
 bindTap($('btnVidPick'), openPick);
