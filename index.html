@@ -112,34 +112,57 @@ body.bigvid #vidBox iframe {
   position:absolute; top:0; left:0;
   max-height:none; border-radius:0; background:transparent;
 }
-/* 自前の再生ボタン。YouTube側のボタンは端末によって隅へずれたり出なかったりするので、
-   位置を自分で決めた目印を必ず1つ重ねる。指のじゃまをしないよう当たり判定は持たせず
-   （pointer-events:none）、タップはそのまま下の動画へ通す＝iOSは動画への直接タップで
-   しか再生を許さないため、この形でないと再生できない。 */
-#vidPlay { display:none; }
-body.bigvid #vidPlay {
+/* ---- 動画の上にかぶせる「まく」（カバー） ----
+   YouTubeの再生ボタンがどこに描かれるかは、こちらから決められない（別サイトの中身のため）。
+   端末によって隅へずれたり出なかったりする。位置を直そうとする戦いはやめ、
+   **動画の面をこちらの絵で覆って隠し、子どもへの合図は全部こちらで出す**。
+   当たり判定は持たせない（pointer-events:none）ので、タップはまくを素通りして動画へ届く
+   ＝iOSは動画への直接タップでしか再生を許さないため、この形でないと再生できない。
+   ただし「もういちど」だけは押させたいので、そこだけ当たり判定を戻す。 */
+#vidCover { display:none; }
+body.bigvid #vidCover {
   display:block; position:absolute; z-index:5;
-  pointer-events:none; text-align:center;
+  pointer-events:none; overflow:hidden;
+  background-color:#000; background-repeat:no-repeat;
+  background-position:center center; background-size:cover;
 }
-#vidPlay .pbtn {
-  display:inline-block; width:104px; height:104px; line-height:100px;
-  border-radius:50%; background:rgba(0,0,0,0.55); border:4px solid #F0E442;
-  color:#F0E442; font-size:44px;
+#vidCover .veil {
+  position:absolute; top:0; left:0; right:0; bottom:0;
+  background:rgba(0,0,0,0.45);
+}
+#vidCover .mid {
+  position:absolute; left:0; right:0; top:50%; margin-top:-84px;
+  text-align:center;
+}
+#vidCover .pbtn {
+  display:none;
+  width:116px; height:116px; line-height:110px; margin:0 auto;
+  border-radius:50%; background:rgba(0,0,0,0.55); border:5px solid #F0E442;
+  color:#F0E442; font-size:50px;
   -webkit-animation:pulse 1.6s infinite; animation:pulse 1.6s infinite;
 }
+#vidCover.ready .pbtn { display:block; }
+#vidCover .cmsg {
+  display:inline-block; margin-top:14px;
+  background:rgba(0,0,0,0.7); color:#F0E442;
+  font-size:22px; font-weight:bold; padding:9px 22px; border-radius:999px;
+}
+#vidCover.fail .cmsg { color:#fff; }
+#vidCover .retry {
+  display:none; pointer-events:auto;
+  margin-top:16px; border:0; border-radius:999px;
+  background:#E69F00; color:#fff; font-size:24px; font-weight:bold;
+  padding:15px 34px; box-shadow:0 4px 0 #b57d00; cursor:pointer;
+}
+#vidCover.fail .retry { display:inline-block; }
+#vidCover .diag {
+  display:none;
+  position:absolute; left:0; right:0; bottom:8px;
+  color:#bbb; font-size:12px; text-align:center;
+}
+#vidCover.fail .diag { display:block; }
 @-webkit-keyframes pulse { 0%,100%{-webkit-transform:scale(1);} 50%{-webkit-transform:scale(1.12);} }
 @keyframes pulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.12);} }
-
-#vidLoad { display:none; }
-body.bigvid #vidLoad {
-  display:block; position:absolute; left:0; right:0; bottom:120px;
-  text-align:center; z-index:4; pointer-events:none;
-}
-#vidLoad span.tap { background:rgba(0,0,0,0.78); color:#fff; }
-#vidLoad span {
-  display:inline-block; background:rgba(0,0,0,0.62); color:#F0E442;
-  font-size:20px; font-weight:bold; padding:8px 20px; border-radius:999px;
-}
 .loadDot { -webkit-animation:ldot 1.2s infinite; animation:ldot 1.2s infinite; }
 .loadDot2 { -webkit-animation-delay:0.2s; animation-delay:0.2s; }
 .loadDot3 { -webkit-animation-delay:0.4s; animation-delay:0.4s; }
@@ -324,8 +347,15 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
     <p class="note" id="vidStartNote" style="margin-top:12px"></p>
   </div>
   <div id="vidBox"></div>
-  <div id="vidPlay"><span class="pbtn">&#9654;</span></div>
-  <div id="vidLoad"><span id="vidLoadMsg">よみこみちゅう<b class="loadDot">.</b><b class="loadDot loadDot2">.</b><b class="loadDot loadDot3">.</b></span></div>
+  <div id="vidCover">
+    <div class="veil"></div>
+    <div class="mid">
+      <div class="pbtn">&#9654;</div>
+      <div><span class="cmsg" id="covMsg"></span></div>
+      <div><button class="retry" id="btnVidRetry">もういちど</button></div>
+    </div>
+    <div class="diag" id="covDiag"></div>
+  </div>
   <div class="v-seek" id="vidSeek">
     <button class="seekBtn" id="btnBack10">&#9194; 10</button>
     <span class="seekTime" id="seekCur">0:00</span>
@@ -422,6 +452,9 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
     <h3>スタンプ</h3>
     <p class="note" id="stampInfo"></p>
 
+    <h3>どうがの ようす（うまくいったか）</h3>
+    <p class="note" id="vidLogBox"></p>
+
     <h3>これまでの きろく</h3>
     <p class="note" id="histBox"></p>
 
@@ -449,7 +482,7 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 8;
+var APP_VERSION = 9;
 
 /* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
    上の APP_VERSION と隣り合っていると、版数を上げたときに
@@ -811,26 +844,72 @@ function thumbUrl(idx){
   var it = (vidBaked && vidBaked.items) ? vidBaked.items[idx] : null;
   return it ? ('https://i.ytimg.com/vi/' + it.id + '/hqdefault.jpg') : '';
 }
-function setLoadUI(mode){
-  /* mode: 'load'=よみこみちゅう / 'tap'=動画をタップしての案内 / 'play'=消す。
-     iOSは動画そのものへのタップでしか再生を始めない（自前のボタンでは代われない）ので、
-     案内は「動画をタップして」と伝えるだけにし、指のじゃまをしない（pointer-events:none）。 */
-  var msg = $('vidLoadMsg'), pl = $('vidPlay');
-  $('vidLoad').style.visibility = (mode === 'play') ? 'hidden' : 'visible';
-  /* 自前の再生ボタンは、再生が始まったら消す（じゃまをしない） */
-  if (pl) pl.style.visibility = (mode === 'play') ? 'hidden' : 'visible';
-  if (mode === 'tap') {
-    msg.className = 'tap';
-    msg.textContent = 'どうがを タップすると はじまるよ';
-  } else if (mode === 'load') {
-    msg.className = '';
+/* 動画のまくの状態は4つ。
+   'load' ＝まだYouTubeから返事がない（よみこみちゅう）
+   'ready'＝YouTubeが実際に返事をした＝タップすれば始まる状態。ここではじめて▶を出す
+   'play' ＝再生が始まった（まくを消す）
+   'fail' ＝待っても返事が来ない＝押しても始まらない状態。「もういちど」を出す
+   **▶は'ready'のときしか出さない**＝出ているのに押しても動かない、という嘘をつかないため
+   （2026-08-23しげ指摘。以前は「4秒たったら」でも案内を出しており、これが嘘の原因だった）。 */
+var VID_FAIL_MS = 12000;
+var vidMode = '';
+function setVidUI(mode){
+  if (mode === vidMode) return;
+  vidMode = mode;
+  var cov = $('vidCover'), msg = $('covMsg');
+  if (!cov) return;
+  cov.style.visibility = (mode === 'play') ? 'hidden' : 'visible';
+  cov.className = (mode === 'ready') ? 'ready' : (mode === 'fail' ? 'fail' : '');
+  if (mode === 'load') {
     msg.textContent = 'よみこみちゅう...';
+  } else if (mode === 'ready') {
+    msg.textContent = 'タップすると はじまるよ';
+  } else if (mode === 'fail') {
+    msg.textContent = 'いま どうがを よべなかったよ';
+    $('covDiag').textContent = vidDiag();
+    logVid('fail');
   }
 }
+/* うまくいかなかったときだけ、おうちのひとが原因を追えるように状態を出す。
+   ふだんの画面には出さない（子どものじゃまをしない）。 */
+function vidDiag(){
+  var f = vidFrame();
+  return 'へんじ=' + (ytLive ? 'あり' : 'なし') +
+    ' / じょうたい=' + ytState +
+    ' / けいか=' + Math.round((Date.now() - mountAt) / 1000) + 'びょう' +
+    ' / わく=' + (f ? (f.style.width + 'x' + f.style.height) : 'なし') +
+    ' / え=' + (thumbOk === null ? '?' : (thumbOk ? 'よめた' : 'よめない'));
+}
+/* 直近の記録（おうちのひと用の設定画面で見る）。10件だけ残す。 */
+function logVid(result){
+  var it = (vidBaked && vidBaked.items) ? vidBaked.items[curIndex()] : null;
+  if (!state.vidLog) state.vidLog = [];
+  state.vidLog.push({
+    t: (new Date()).toLocaleString('ja-JP'),
+    r: result,
+    live: ytLive ? 1 : 0,
+    st: ytState,
+    ms: Date.now() - mountAt,
+    id: it ? it.id : ''
+  });
+  if (state.vidLog.length > 10) state.vidLog = state.vidLog.slice(state.vidLog.length - 10);
+  save();
+}
+/* サムネイル画像が読めるか＝通信が届いているかの目安にもなる */
+var thumbOk = null;
 function showLoading(idx){
-  var u = thumbUrl(idx);
+  var u = thumbUrl(idx), im;
+  thumbOk = null;
   $('vidBox').style.backgroundImage = u ? ('url(' + u + ')') : 'none';
-  setLoadUI('load');
+  $('vidCover').style.backgroundImage = u ? ('url(' + u + ')') : 'none';
+  if (u) {
+    im = new Image();
+    im.onload = function(){ thumbOk = true; };
+    im.onerror = function(){ thumbOk = false; };
+    im.src = u;
+  }
+  vidMode = '';
+  setVidUI('load');
 }
 function gotoIndex(i){
   state.today.vidCur = i;
@@ -886,7 +965,7 @@ function videoRect(){
   return { w: w, h: h, left: Math.round((bw - w) / 2), top: Math.round((bh - h) / 2) };
 }
 function fitPlayer(){
-  var f = vidFrame(), box = $('vidBox'), pl = $('vidPlay'), r;
+  var f = vidFrame(), box = $('vidBox'), pl = $('vidCover'), r;
   if (!f) return;
   r = videoRect();
   /* 食い違ったときだけ書き換える（毎秒呼ばれても無駄がない） */
@@ -895,10 +974,11 @@ function fitPlayer(){
   if (f.style.left !== r.left + 'px') f.style.left = r.left + 'px';
   if (f.style.top !== r.top + 'px') f.style.top = r.top + 'px';
   if (pl) {
-    /* 自前の再生ボタンを、その四角のまんなかへ重ねる */
+    /* まくを、動画とぴったり同じ四角に重ねる（YouTube側の描画をこちらの絵で隠す） */
     pl.style.left = (box.offsetLeft + r.left) + 'px';
-    pl.style.top = (box.offsetTop + r.top + Math.round(r.h / 2) - 52) + 'px';
+    pl.style.top = (box.offsetTop + r.top) + 'px';
     pl.style.width = r.w + 'px';
+    pl.style.height = r.h + 'px';
   }
 }
 function vidFrame(){
@@ -930,8 +1010,8 @@ window.addEventListener('message', function(ev){
     if (typeof d.info.playerState === 'number') {
       ytState = d.info.playerState;
       if (ytState === 1) {
-        if (!ytPlayed) { ytPlayed = true; ytCaptionsOff(); }
-        setLoadUI('play');
+        if (!ytPlayed) { ytPlayed = true; ytCaptionsOff(); logVid('ok'); }
+        setVidUI('play');
       }
     }
   }
@@ -1301,7 +1381,7 @@ function startVideo(){
 function endVideo(byTimer){
   var c = videoConf();
   setBigVid(false);
-  setLoadUI('play');
+  setVidUI('play');
   $('vidBox').style.backgroundImage = 'none';
   var box = $('vidBox');
   while (box.firstChild) box.removeChild(box.firstChild);
@@ -1364,13 +1444,11 @@ function tick(){
       fitPlayer();
       if (!ytLive) ytHello();
       var el = Date.now() - mountAt;
-      if (ytState === 1) {
-        setLoadUI('play');
-      } else if (ytLive || el > 4000) {
-        /* 読み込みが済んだら「動画をタップして」の案内に切り替える。
-           再生が始まれば上の分岐で消える。 */
-        setLoadUI('tap');
-      }
+      /* 一度でも再生が始まったら、以後まくは出さない（途中で止めたときに画面を覆わない） */
+      if (ytPlayed) setVidUI('play');
+      else if (ytLive) setVidUI('ready');
+      else if (el > VID_FAIL_MS) setVidUI('fail');
+      else setVidUI('load');
       updateSeekUI();
     }
   }
@@ -1477,6 +1555,18 @@ function openSettings(){
   $('praiseHint').textContent = dayPick(PRAISE_HINTS);
   $('stampInfo').textContent = 'いま ' + state.stamps + '個／' + state.settings.stampGoal +
     '個。たまったら「' + rewardName() + '」。スペシャルごほうび獲得 ' + state.rewardsGot + '回。';
+  /* 動画が始まったか・失敗したかの記録。原因を追うための材料をそのまま出す。 */
+  var vb = $('vidLogBox'), vl = (state.vidLog || []).slice(), vlines = [], j, v;
+  vl.reverse();
+  for (j = 0; j < vl.length; j++) {
+    v = vl[j];
+    vlines.push(v.t + '　' + (v.r === 'ok' ? '再生できた' : '始まらなかった') +
+      '　YouTubeの返事=' + (v.live ? 'あり' : 'なし') +
+      '　状態=' + v.st + '　' + Math.round(v.ms / 1000) + '秒' +
+      (v.id ? ('　' + v.id) : ''));
+  }
+  vb.textContent = vlines.length ? vlines.join('\n') : 'まだ記録がありません。';
+  vb.style.whiteSpace = 'pre-line';
   var hb = $('histBox'), i, h, lines = [];
   var hist = state.history.slice();
   hist.reverse();
@@ -1512,6 +1602,9 @@ bindTap($('btnVidEnd'), function(){
     if (yes) endVideo(false);
   });
 });
+/* 「もういちど」＝ページごと読み込み直して、動画を作り直す
+   （古いiOSは再生中の枠を作り替えると2本目以降が黒くなるため、作り直しは常にページごと） */
+bindTap($('btnVidRetry'), function(){ location.reload(); });
 bindTap($('btnVidPrev'), function(){ vidJump(-1); });
 bindTap($('btnVidNext'), function(){ vidJump(1); });
 bindTap($('btnVidPick'), openPick);
