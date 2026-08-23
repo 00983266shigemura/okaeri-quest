@@ -39,6 +39,16 @@ button { font-family:inherit; }
   box-shadow:0 3px 0 rgba(86,180,233,0.35);
   cursor:pointer;
 }
+/* 触れた瞬間に少し潰れ、離すと行き過ぎて戻る（「ビヨン」という手応え）。
+   iPadのWebでは振動が使えないため、見た目の変形と音で触った感じを作る。 */
+.card {
+  -webkit-transition:-webkit-transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
+  transition:transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
+}
+.card.press {
+  -webkit-transform:scale(0.90); transform:scale(0.90);
+  -webkit-transition-duration:0.05s; transition-duration:0.05s;
+}
 .card .c-emoji { font-size:44px; line-height:1.2; }
 .card .c-text { font-size:19px; font-weight:bold; margin-top:6px; line-height:1.35; }
 .card.done { border-color:#E69F00; background:#FFF6DC; box-shadow:0 3px 0 rgba(230,159,0,0.35); }
@@ -59,7 +69,7 @@ button { font-family:inherit; }
   padding:16px 34px; margin:8px 6px 0; cursor:pointer;
   box-shadow:0 4px 0 #005a8e;
 }
-.bigBtn:active { -webkit-transform:translateY(3px); transform:translateY(3px); box-shadow:0 1px 0 #005a8e; }
+.bigBtn:active { -webkit-transform:translateY(3px) scale(0.97); transform:translateY(3px) scale(0.97); box-shadow:0 1px 0 #005a8e; }
 .bigBtn.gray { background:#9b9b9b; box-shadow:0 4px 0 #767676; }
 .bigBtn.orange { background:#E69F00; box-shadow:0 4px 0 #b57d00; }
 .miniBtn {
@@ -233,6 +243,25 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
 }
 #quizA { width:120px; font-size:24px; text-align:center; padding:8px; border:2px solid #ccc; border-radius:8px; }
 
+/* できた瞬間に浮かび上がって消えることば */
+.floatTx {
+  position:fixed; z-index:70; pointer-events:none;
+  width:160px; margin-left:-80px; text-align:center;
+  font-size:26px; font-weight:bold; color:#0072B2;
+  text-shadow:0 2px 0 #fff, 0 -2px 0 #fff, 2px 0 0 #fff, -2px 0 0 #fff;
+  -webkit-animation:floatUp 1.1s ease-out forwards; animation:floatUp 1.1s ease-out forwards;
+}
+@-webkit-keyframes floatUp {
+  0% { opacity:0; -webkit-transform:translateY(8px) scale(0.7); }
+  20% { opacity:1; -webkit-transform:translateY(-8px) scale(1.15); }
+  100% { opacity:0; -webkit-transform:translateY(-76px) scale(1); }
+}
+@keyframes floatUp {
+  0% { opacity:0; transform:translateY(8px) scale(0.7); }
+  20% { opacity:1; transform:translateY(-8px) scale(1.15); }
+  100% { opacity:0; transform:translateY(-76px) scale(1); }
+}
+
 /* 紙吹雪 */
 #confetti { position:fixed; top:0; left:0; right:0; bottom:0; pointer-events:none; z-index:60; overflow:hidden; }
 #confetti span {
@@ -317,8 +346,9 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
 <div class="screen" id="scrNight">
   <div class="n-center">
     <div class="svgWrap"><svg id="svgNight" viewBox="0 0 240 240"></svg></div>
-    <h1>きょうも よく がんばりました！</h1>
-    <p>おやすみなさい 🌙</p>
+    <h1>きょうも さいごまで やりきりました！</h1>
+    <p>おうちのひとと ハイタッチ！ ✋</p>
+    <p style="margin-top:10px;">おやすみなさい 🌙</p>
   </div>
 </div>
 
@@ -367,6 +397,9 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
     <h2>せってい（おうちのひと用）</h2>
     <p class="note">タスク・時間・動画などの設定は、パソコン側のファイルで管理しています。この画面からは変更できません（記録の確認と、やり直しだけできます）。</p>
 
+    <h3>きょうの ほめかたヒント</h3>
+    <p class="note" id="praiseHint"></p>
+
     <h3>スタンプ</h3>
     <p class="note" id="stampInfo"></p>
 
@@ -397,7 +430,12 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 6;
+var APP_VERSION = 7;
+
+/* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
+   上の APP_VERSION と隣り合っていると、版数を上げたときに
+   自動更新分と取り込みでぶつかる（2026-08-23に実際に発生）。
+   ぶつからないよう、間にこの説明を挟んで離してある。消さないこと。 */
 var VIDEO_LISTS = {"main":{"list":"UUC4107WX_cYsJ80fWjR5Hjw","items":[{"id":"_PJYwXkj8NE","t":"ミヤマクワガタ・ノコギリクワガタの産卵にチャレンジするぜ！"},{"id":"rZZLqEwtT20","t":"生きたカブクワが50種類展示されるヤバい昆虫展はこちら！"},{"id":"NVmitiDUK4M","t":"【衝撃】カブトムシ1匹を腐葉土の中に入れると・・・"},{"id":"fsNrV69ulJk","t":"セミが大量に採れる季節がはじまりました！！！！"},{"id":"QP5cMuTthKc","t":"夏休み限定！世界の昆虫たちが集まる昆虫展がスゴすぎる！"},{"id":"OaP8pPgqMIs","t":"いまのガチャガチャってこんなことになってんの？www"},{"id":"yVQdFIksZlg","t":"昆虫採集ってこういうのでいいんだよ"},{"id":"jar39uoSkNY","t":"新グッズ&夏のイベントのお知らせ！"},{"id":"PRJudDCokkk","t":"カブトムシが200匹放たれる夏休み限定の昆虫展がヤバい！！"},{"id":"rltxGvnfwYU","t":"これが噂のネギトラップ！その威力をご覧あれ！！！"},{"id":"K5pqVbSG55w","t":"河川敷のカブトムシ・クワガタはこうやって探せ！！！！！"},{"id":"bGG7GnP4oGo","t":"【大量】この季節の昆虫採集は河川敷がアツい！！！！！！"},{"id":"ODdGk4kc7mY","t":"八王子の新しい昆虫ショップが最高すぎる！！！！"},{"id":"HaIbB9JTJaQ","t":"ずっと会いたかった虫がそこにいたのです"},{"id":"M0o5d9hP6ek","t":"大ピンチです。ご協力よろしくお願いいたします。"}]},"petit":{"list":"UU6cXcs9jEmAx9qPx6ubWWkg","items":[{"id":"Dv42PzK8Aps","t":"「もりのおく」ピタゴラスイッチカバー つながりうた Eテレ オリジナルアニメーション"},{"id":"4xZ0B1g3LUI","t":"「たまご会議」 おとなのピタゴラスイッチ  Eテレ オリジナルアニメーション"},{"id":"LETUJ2ArTcg","t":"「こたつたこ」なぞなぞ編 おとなのピタゴラスイッチ 回文の歌 Eテレ オリジナルアニメーション"},{"id":"meKen0btf-c","t":"ビーだまビーすけの大冒険スペシャル全部入り+追加場面あり音質調整版 E-テレ NHK ピタゴラスイッチカバー"},{"id":"H6pPoYO10hg","t":"るかろか ピタゴラスイッチ Eテレ NHK けいのチァンネル"},{"id":"806eNZXFhT0","t":"効率第一ダンドリオン お掃除編 ピタゴラスイッチ好きなら必見！Eテレ新番組テキシコーより和牛のお二人によるアニメ Eテレ NHK"},{"id":"N0r5WlkdSh4","t":"パタトクカシー おとなのピタゴラスイッチ Eテレ オリジナルアニメーション"},{"id":"lz5K5aSnZXw","t":"「こたつたこ」その2 おとなのピタゴラスイッチ 回文の歌 Eテレ オリジナルアニメーション"},{"id":"lC2hxHBEqXI","t":"しめじソート おとなのピタゴラスイッチ Eテレ マージソート"},{"id":"ULrh9saGwAg","t":"ぽんほんぼんの歌 おとなのピタゴラスイッチ Eテレ オリジナルアニメーション"},{"id":"SwCbDgiCpTQ","t":"ビーだまビーすけの大冒険ファイナル ビーすけと黒玉王子の大脱出 おとなのピタゴラスイッチ Eテレ NHK"},{"id":"cZzjXk25W9E","t":"びーだまびーすけの大冒険 Ep3 プロローグ おとなのピタゴラスイッチ MarbleB suke Great Adventure Episode3 Prologue Eテレ NHK"},{"id":"dqaAC0EpwYU","t":"アルゴリズム体操 ピタゴラスイッチ あっちむいて二人でまえならえ"},{"id":"P_tYwzXUPvc","t":"ビーだまビーすけの大冒険番外編 黒玉軍のピタゴラ装置 おとなのピタゴラスイッチ Eテレ NHK"},{"id":"otobyfuehmc","t":"「こたつたこ」おとなのピタゴラスイッチ Eテレ 回文の歌 オリジナルアニメーション"}]}};
 
 var DEFAULT_SETTINGS = {
@@ -542,34 +580,88 @@ function ensureAudio(){
   if (actx.resume) { try { actx.resume(); } catch(e){} }
   return actx;
 }
-function tone(freq, start, dur, vol, type){
+/* 1音を鳴らす。atk=立ち上がりの速さ（短いほど「カチッ」と硬い音になる）。
+   音量を一気にon/offせず、立ち上げてから指数カーブで消すと安っぽさが消える。 */
+function tone(freq, start, dur, vol, type, atk){
   var c = ensureAudio(); if (!c) return;
   var o = c.createOscillator(), g = c.createGain();
-  o.type = type || 'sine';
+  o.type = type || 'triangle';
   o.frequency.value = freq;
   var t = c.currentTime + start;
   g.gain.setValueAtTime(0.0001, t);
-  g.gain.linearRampToValueAtTime(vol || 0.22, t + 0.02);
+  g.gain.linearRampToValueAtTime(vol || 0.22, t + (atk || 0.004));
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   o.connect(g); g.connect(c.destination);
   o.start(t); o.stop(t + dur + 0.05);
 }
-function sndTap(){ tone(660,0,0.14); tone(990,0.09,0.22); }
-function sndUndo(){ tone(440,0,0.15); tone(330,0.1,0.2); }
-function sndFanfare(){
-  tone(523,0,0.22); tone(659,0.14,0.22); tone(784,0.28,0.22); tone(1046,0.42,0.5,0.3);
-  tone(659,0.62,0.4,0.15); tone(784,0.62,0.4,0.15); tone(1046,0.62,0.6,0.2);
+/* ざらざらした音（拍手・紙吹雪の「パンッ」）。オシレータでは作れないので雑音から作る。 */
+function noiseBurst(start, dur, vol){
+  var c = ensureAudio(); if (!c || !c.createBuffer || !c.createBufferSource) return;
+  var len = Math.floor(c.sampleRate * dur), i, buf, data, src, g, f;
+  if (!(len > 0)) return;
+  try { buf = c.createBuffer(1, len, c.sampleRate); } catch(e){ return; }
+  data = buf.getChannelData(0);
+  for (i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+  try {
+    src = c.createBufferSource(); src.buffer = buf;
+    g = c.createGain(); g.gain.value = vol || 0.16;
+    f = c.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 5000;
+    src.connect(f); f.connect(g); g.connect(c.destination);
+    src.start(c.currentTime + start);
+  } catch(e){}
 }
-function sndSmallFanfare(){ tone(659,0,0.18); tone(784,0.12,0.18); tone(988,0.24,0.4,0.28); }
-function sndTimeUp(){ tone(1046,0,0.35); tone(784,0.28,0.35); tone(523,0.56,0.7); }
-function sndNight(){ tone(523,0,0.5,0.15); tone(392,0.4,0.6,0.15); tone(330,0.85,1.2,0.15); }
+/* きらきら音。ドレミソラ（5音）から選ぶので、どの順に鳴っても濁らない。 */
+function sparkle(start){
+  var pent = [1568, 1760, 1976, 2349, 2637], i;
+  for (i = 0; i < 6; i++) {
+    tone(pent[Math.floor(Math.random() * pent.length)], start + i * 0.045, 0.25, 0.07, 'sine', 0.002);
+  }
+  tone(3136, start + 0.3, 0.7, 0.06, 'sine', 0.002);
+}
+/* タップ＝短い前打音→高い音へ跳ね上がる（マリオのコイン音と同じ骨格） */
+function sndTap(){ tone(988, 0, 0.06, 0.20, 'square', 0.002); tone(1319, 0.06, 0.4, 0.16, 'square', 0.002); }
+/* とりけし＝やさしい否定。小さめ・丸い音色・すこしだけ下がる（萎縮させない） */
+function sndUndo(){ tone(440, 0, 0.12, 0.12, 'sine', 0.01); tone(392, 0.11, 0.3, 0.10, 'sine', 0.01); }
+/* はなまる＝駆け上がり→和音→パンッ→きらきら */
+function sndFanfare(){
+  tone(523,0,0.3,0.20); tone(659,0.07,0.3,0.20); tone(784,0.14,0.3,0.20); tone(1046,0.21,0.7,0.24);
+  tone(523,0.42,0.9,0.10); tone(659,0.42,0.9,0.10); tone(784,0.42,0.9,0.10); tone(1046,0.42,1.0,0.12);
+  noiseBurst(0.42, 0.25, 0.12);
+  sparkle(0.5);
+}
+function sndSmallFanfare(){
+  tone(659,0,0.18,0.18); tone(784,0.1,0.18,0.18); tone(988,0.2,0.5,0.22);
+  sparkle(0.3);
+}
+/* スペシャルごほうび＝一瞬ぶつかる音（緊張）→きれいな和音（解決）で気持ちよさを作る */
+function sndSpecial(){
+  tone(392,0,0.16,0.14,'sine'); tone(415,0,0.16,0.14,'sine');
+  tone(466,0.16,0.16,0.14,'sine'); tone(494,0.16,0.16,0.14,'sine');
+  tone(523,0.36,1.2,0.16); tone(659,0.36,1.2,0.16); tone(784,0.36,1.2,0.16); tone(1046,0.44,1.4,0.20);
+  noiseBurst(0.36, 0.3, 0.14);
+  sparkle(0.6);
+}
+function sndTimeUp(){ tone(1046,0,0.35,0.18); tone(784,0.28,0.35,0.18); tone(523,0.56,0.7,0.18); }
+function sndNight(){
+  tone(523,0,0.6,0.13,'sine',0.05); tone(392,0.4,0.7,0.13,'sine',0.05); tone(330,0.85,1.3,0.13,'sine',0.05);
+}
 
 /* ---------- タップ処理（iOS10はuser-scalable=noが無効なのでダブルタップ拡大を自前で抑止） ---------- */
+function addCls(el, c){
+  if (!el || (' ' + el.className + ' ').indexOf(' ' + c + ' ') >= 0) return;
+  el.className = el.className + ' ' + c;
+}
+function delCls(el, c){
+  if (!el) return;
+  el.className = (' ' + el.className + ' ').replace(' ' + c + ' ', ' ').replace(/^\s+|\s+$/g, '');
+}
 function bindTap(el, fn){
   var moved = false, usedTouch = false;
-  el.addEventListener('touchstart', function(){ moved = false; }, false);
-  el.addEventListener('touchmove', function(){ moved = true; }, false);
+  el.addEventListener('touchstart', function(){ moved = false; addCls(el, 'press'); }, false);
+  el.addEventListener('touchmove', function(){ moved = true; delCls(el, 'press'); }, false);
+  el.addEventListener('touchcancel', function(){ delCls(el, 'press'); }, false);
   el.addEventListener('touchend', function(e){
+    delCls(el, 'press');
     if (moved) return;
     usedTouch = true;
     e.preventDefault();
@@ -577,10 +669,26 @@ function bindTap(el, fn){
     fn(e);
   }, false);
   el.addEventListener('click', function(e){
+    delCls(el, 'press');
     if (usedTouch) { usedTouch = false; return; }
     ensureAudio();
     fn(e);
   }, false);
+}
+
+/* ---------- できた瞬間に浮かぶことば ---------- */
+var FLOAT_WORDS = ['できた！', 'やったね！', 'いいね！', '+1'];
+function floatText(el, msg){
+  var r, f;
+  if (!el || !el.getBoundingClientRect || !document.body) return;
+  try { r = el.getBoundingClientRect(); } catch(e){ return; }
+  f = document.createElement('div');
+  f.className = 'floatTx';
+  f.textContent = msg;
+  f.style.left = (r.left + r.width / 2) + 'px';
+  f.style.top = (r.top + r.height * 0.25) + 'px';
+  document.body.appendChild(f);
+  setTimeout(function(){ if (f.parentNode) f.parentNode.removeChild(f); }, 1300);
 }
 document.addEventListener('gesturestart', function(e){ e.preventDefault(); }, false);
 
@@ -932,6 +1040,7 @@ function onTaskTap(kind, idx, el){
   done[idx] = true;
   save();
   sndTap();
+  floatText(el, FLOAT_WORDS[Math.floor(Math.random() * FLOAT_WORDS.length)]);
   el.className = 'card done pop';
   var stampEl = el;
   setTimeout(function(){ stampEl.className = 'card done'; }, 550);
@@ -972,8 +1081,34 @@ function completeMain(){
   save();
   render();
 }
+/* ---------- ほめことば ----------
+   「すごい！」「天才！」のような人そのものへのほめ方ではなく、
+   がんばり方・やり方・進歩をほめる（過程ほめ）。研究では、幼いころに
+   過程をほめられた子ほど、あとで難しいことに挑戦する力が高い。
+   その日のうちは同じ文言になるよう、日付から選ぶ。 */
+var PRAISE_MAIN = [
+  'さいごまで じぶんで やりきったね',
+  'ひとつずつ ていねいに できたね',
+  'じぶんで きづいて うごけたね',
+  'とちゅうで やめないで つづけられたね',
+  'きょうも じゅんばんどおり すすめたね',
+  'あとまわしに しないで できたね',
+  'じぶんの ちからで ここまで きたね'
+];
+var PRAISE_AFTER = [
+  'ねるまえの じゅんびも じぶんで できたね',
+  'さいごの ひとふんばりが できたね',
+  'あしたの ことまで きが つけたね',
+  'ねむくても やりきったね'
+];
+function dayPick(list){
+  var d = state.today && state.today.date ? state.today.date : todayStr();
+  var n = 0, i;
+  for (i = 0; i < d.length; i++) n += d.charCodeAt(i) * (i + 1);
+  return list[n % list.length];
+}
 function celeb1Contents(){
-  var lines = [{ text: 'ぜんぶ できた！すごい！' }];
+  var lines = [{ text: dayPick(PRAISE_MAIN) }];
   lines.push({ text: 'どうがタイム ' + state.settings.rewardMin + 'ふん！' });
   return {
     hanamaru: true, title: 'はなまる！', lines: lines,
@@ -990,7 +1125,10 @@ function completeAfter(){
 function celeb2Contents(){
   return {
     emoji: '💮', title: 'できました！',
-    lines: [{ text: 'ピタゴラタイム ' + state.settings.petitMin + 'ふん！' }],
+    lines: [
+      { text: dayPick(PRAISE_AFTER) },
+      { text: 'ピタゴラタイム ' + state.settings.petitMin + 'ふん！' }
+    ],
     btn: 'ピタゴラタイムへ ▶',
     onBtn: function(){ state.today.phase = 'video2'; save(); render(); }
   };
@@ -1274,7 +1412,18 @@ function buildStampCard(isNew){
 }
 
 /* ---------- 設定（表示のみ。設定値の変更はこのファイルをPCで書き換える） ---------- */
+/* おうちのひと向けのヒント。ほめ方の研究にもとづく短い1行を日替わりで出す。 */
+var PRAISE_HINTS = [
+  '「どうやって はやく できたの？」と、やり方を聞いてみてください。子どもが自分の工夫に気づきます。',
+  '結果より「最後までやりきったこと」を、そのまま言葉にしてみてください。',
+  '「きのうより○○だったね」と、変化を具体的に伝えてみてください。',
+  '「天才！」「いい子！」より「がんばったね」の方が、失敗を怖がらない力を育てます。',
+  'ほめるときは大げさにしすぎない方が、かえって自信のもとになります。',
+  'できなかった日は「まだ できないだけ」と言い添えてみてください。',
+  '今日いちばん大変だったことを聞いて、そこをねぎらってみてください。'
+];
 function openSettings(){
+  $('praiseHint').textContent = dayPick(PRAISE_HINTS);
   $('stampInfo').textContent = 'いま ' + state.stamps + '個／' + state.settings.stampGoal +
     '個。たまったら「' + rewardName() + '」。スペシャルごほうび獲得 ' + state.rewardsGot + '回。';
   var hb = $('histBox'), i, h, lines = [];
@@ -1325,7 +1474,7 @@ bindTap($('btnStampGo'), function(){
     state.rewardsGot++;
     save();
     confetti();
-    sndFanfare();
+    sndSpecial();
     showCeleb({
       emoji: '🎁', title: 'スペシャルごほうび！',
       lines: [
