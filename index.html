@@ -112,6 +112,24 @@ body.bigvid #vidBox iframe {
   position:absolute; top:0; left:0;
   max-height:none; border-radius:0; background:transparent;
 }
+/* 自前の再生ボタン。YouTube側のボタンは端末によって隅へずれたり出なかったりするので、
+   位置を自分で決めた目印を必ず1つ重ねる。指のじゃまをしないよう当たり判定は持たせず
+   （pointer-events:none）、タップはそのまま下の動画へ通す＝iOSは動画への直接タップで
+   しか再生を許さないため、この形でないと再生できない。 */
+#vidPlay { display:none; }
+body.bigvid #vidPlay {
+  display:block; position:absolute; z-index:5;
+  pointer-events:none; text-align:center;
+}
+#vidPlay .pbtn {
+  display:inline-block; width:104px; height:104px; line-height:100px;
+  border-radius:50%; background:rgba(0,0,0,0.55); border:4px solid #F0E442;
+  color:#F0E442; font-size:44px;
+  -webkit-animation:pulse 1.6s infinite; animation:pulse 1.6s infinite;
+}
+@-webkit-keyframes pulse { 0%,100%{-webkit-transform:scale(1);} 50%{-webkit-transform:scale(1.12);} }
+@keyframes pulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.12);} }
+
 #vidLoad { display:none; }
 body.bigvid #vidLoad {
   display:block; position:absolute; left:0; right:0; bottom:120px;
@@ -306,6 +324,7 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
     <p class="note" id="vidStartNote" style="margin-top:12px"></p>
   </div>
   <div id="vidBox"></div>
+  <div id="vidPlay"><span class="pbtn">&#9654;</span></div>
   <div id="vidLoad"><span id="vidLoadMsg">よみこみちゅう<b class="loadDot">.</b><b class="loadDot loadDot2">.</b><b class="loadDot loadDot3">.</b></span></div>
   <div class="v-seek" id="vidSeek">
     <button class="seekBtn" id="btnBack10">&#9194; 10</button>
@@ -430,7 +449,7 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 7;
+var APP_VERSION = 8;
 
 /* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
    上の APP_VERSION と隣り合っていると、版数を上げたときに
@@ -796,8 +815,10 @@ function setLoadUI(mode){
   /* mode: 'load'=よみこみちゅう / 'tap'=動画をタップしての案内 / 'play'=消す。
      iOSは動画そのものへのタップでしか再生を始めない（自前のボタンでは代われない）ので、
      案内は「動画をタップして」と伝えるだけにし、指のじゃまをしない（pointer-events:none）。 */
-  var msg = $('vidLoadMsg');
+  var msg = $('vidLoadMsg'), pl = $('vidPlay');
   $('vidLoad').style.visibility = (mode === 'play') ? 'hidden' : 'visible';
+  /* 自前の再生ボタンは、再生が始まったら消す（じゃまをしない） */
+  if (pl) pl.style.visibility = (mode === 'play') ? 'hidden' : 'visible';
   if (mode === 'tap') {
     msg.className = 'tap';
     msg.textContent = 'どうがを タップすると はじまるよ';
@@ -849,17 +870,36 @@ function embedSrc(p){
 var ytLive = false;    /* プレーヤーからの返事を一度でも受け取ったか */
 var ytPlayed = false;  /* 一度でも再生が始まったか */
 var ytDur = 0, ytCur = 0, ytState = -2, mountAt = 0, seekFrac = null;
+/* 動画を置く四角を「16:9ちょうど・まんなか」で求める。
+   枠を表示範囲いっぱい（16:9でない形）にすると、YouTube側が中で上下に黒帯を作る計算をする。
+   古いiOSではその計算どおりに再生ボタンが描かれず、隅へずれたり出なかったりする。
+   最初から16:9で渡せば黒帯の計算自体が起きず、ボタンはこの四角のまんなかに来る。
+   幅・高さが取れないとき（切り替えた直後など）は画面の大きさから見積もる
+   ＝取れないまま既定の小さい枠でYouTubeが立ち上がるのを防ぐ。 */
+function videoRect(){
+  var box = $('vidBox'), bw = box.clientWidth, bh = box.clientHeight, w, h;
+  if (!(bw > 0)) bw = window.innerWidth || 1024;
+  if (!(bh > 0)) bh = (window.innerHeight || 768) - 108;
+  if (!(bh > 0)) bh = 480;
+  w = bw; h = Math.round(w * 9 / 16);
+  if (h > bh) { h = bh; w = Math.round(h * 16 / 9); }
+  return { w: w, h: h, left: Math.round((bw - w) / 2), top: Math.round((bh - h) / 2) };
+}
 function fitPlayer(){
-  /* 動画の枠を、表示できる範囲の実寸(px)にそろえる。
-     古いiOSは割合指定だと枠を広げすぎ、再生ボタンが画面の隅で見切れるため。 */
-  var f = vidFrame(), box = $('vidBox'), w, h;
+  var f = vidFrame(), box = $('vidBox'), pl = $('vidPlay'), r;
   if (!f) return;
-  w = box.clientWidth;
-  h = box.clientHeight;
-  if (w <= 0 || h <= 0) return;
+  r = videoRect();
   /* 食い違ったときだけ書き換える（毎秒呼ばれても無駄がない） */
-  if (f.style.width !== w + 'px') f.style.width = w + 'px';
-  if (f.style.height !== h + 'px') f.style.height = h + 'px';
+  if (f.style.width !== r.w + 'px') f.style.width = r.w + 'px';
+  if (f.style.height !== r.h + 'px') f.style.height = r.h + 'px';
+  if (f.style.left !== r.left + 'px') f.style.left = r.left + 'px';
+  if (f.style.top !== r.top + 'px') f.style.top = r.top + 'px';
+  if (pl) {
+    /* 自前の再生ボタンを、その四角のまんなかへ重ねる */
+    pl.style.left = (box.offsetLeft + r.left) + 'px';
+    pl.style.top = (box.offsetTop + r.top + Math.round(r.h / 2) - 52) + 'px';
+    pl.style.width = r.w + 'px';
+  }
 }
 function vidFrame(){
   var f = $('vidBox').getElementsByTagName('iframe');
@@ -1175,14 +1215,25 @@ function mountPlayer(c){
   mountAt = Date.now();
   updateSeekUI();
   if (state.settings.mode === 'embed' && p) {
-    var f = document.createElement('iframe');
+    /* 順序が大事＝①先に大画面へ切り替える ②16:9の実寸を決める ③その寸法を枠に入れる
+       ④最後に読み込みを始める。寸法を決める前に枠を差し込むと、YouTubeが既定の小さい枠
+       （300×150）で立ち上がり、そのときの配置のまま操作ボタンが描かれてしまう
+       ＝再生ボタンが隅に見切れる・そもそも出ない、の原因になる。 */
+    setBigVid(true);
     showLoading(curIndex());
-    f.setAttribute('src', playSrc(p));
+    var r = videoRect();
+    var f = document.createElement('iframe');
+    f.setAttribute('width', String(r.w));
+    f.setAttribute('height', String(r.h));
+    f.style.width = r.w + 'px';
+    f.style.height = r.h + 'px';
+    f.style.left = r.left + 'px';
+    f.style.top = r.top + 'px';
     f.setAttribute('allowfullscreen', 'true');
     f.setAttribute('scrolling', 'no');
     f.setAttribute('frameborder', '0');
+    f.setAttribute('src', playSrc(p));
     box.appendChild(f);
-    setBigVid(true);
     fitPlayer();
     /* 画面の向きや大きさが確定するのが一拍あとになる端末があるため、少し置いて測り直す */
     setTimeout(fitPlayer, 300);
