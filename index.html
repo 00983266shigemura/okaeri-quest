@@ -51,6 +51,8 @@ button { font-family:inherit; }
 }
 .card .c-emoji { font-size:44px; line-height:1.2; }
 .card .c-text { font-size:19px; font-weight:bold; margin-top:6px; line-height:1.35; }
+/* おふろの札に出す「せんとうなら＋5ふん」の小さな知らせ（選ぶ前から見える＝行きたくなる仕掛け） */
+.card .c-sub { font-size:13px; font-weight:bold; color:#CC79A7; margin-top:4px; }
 .card.done { border-color:#E69F00; background:#FFF6DC; box-shadow:0 3px 0 rgba(230,159,0,0.35); }
 .card.done .c-text { color:#8a6d00; }
 .card .c-stamp {
@@ -449,6 +451,9 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
     <h3>きょうの ほめかたヒント</h3>
     <p class="note" id="praiseHint"></p>
 
+    <h3>きょうの クエスト</h3>
+    <p class="note" id="dayInfo"></p>
+
     <h3>スタンプ</h3>
     <p class="note" id="stampInfo"></p>
 
@@ -459,6 +464,7 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
     <p class="note" id="histBox"></p>
 
     <div class="row wrap" style="text-align:left;">
+      <button class="setBtn" id="btnToggleRest">きょうの クエストを 切りかえる</button>
       <button class="setBtn" id="btnResetToday">きょうを やりなおす</button>
       <button class="setBtn" id="btnClearHist">きろくを 全部消す</button>
       <button class="setBtn" id="btnClearStamp">スタンプを 全部消す</button>
@@ -482,13 +488,26 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 10;
+var APP_VERSION = 11;
 
 /* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
    上の APP_VERSION と隣り合っていると、版数を上げたときに
    自動更新分と取り込みでぶつかる（2026-08-23に実際に発生）。
    ぶつからないよう、間にこの説明を挟んで離してある。消さないこと。 */
 var VIDEO_LISTS = {"main":{"list":"UUC4107WX_cYsJ80fWjR5Hjw","items":[{"id":"_PJYwXkj8NE","t":"ミヤマクワガタ・ノコギリクワガタの産卵にチャレンジするぜ！"},{"id":"rZZLqEwtT20","t":"生きたカブクワが50種類展示されるヤバい昆虫展はこちら！"},{"id":"NVmitiDUK4M","t":"【衝撃】カブトムシ1匹を腐葉土の中に入れると・・・"},{"id":"fsNrV69ulJk","t":"セミが大量に採れる季節がはじまりました！！！！"},{"id":"QP5cMuTthKc","t":"夏休み限定！世界の昆虫たちが集まる昆虫展がスゴすぎる！"},{"id":"OaP8pPgqMIs","t":"いまのガチャガチャってこんなことになってんの？www"},{"id":"yVQdFIksZlg","t":"昆虫採集ってこういうのでいいんだよ"},{"id":"jar39uoSkNY","t":"新グッズ&夏のイベントのお知らせ！"},{"id":"PRJudDCokkk","t":"カブトムシが200匹放たれる夏休み限定の昆虫展がヤバい！！"},{"id":"rltxGvnfwYU","t":"これが噂のネギトラップ！その威力をご覧あれ！！！"},{"id":"K5pqVbSG55w","t":"河川敷のカブトムシ・クワガタはこうやって探せ！！！！！"},{"id":"bGG7GnP4oGo","t":"【大量】この季節の昆虫採集は河川敷がアツい！！！！！！"},{"id":"ODdGk4kc7mY","t":"八王子の新しい昆虫ショップが最高すぎる！！！！"},{"id":"HaIbB9JTJaQ","t":"ずっと会いたかった虫がそこにいたのです"},{"id":"M0o5d9hP6ek","t":"大ピンチです。ご協力よろしくお願いいたします。"}]},"petit":{"list":"UU6cXcs9jEmAx9qPx6ubWWkg","items":[{"id":"Dv42PzK8Aps","t":"「もりのおく」ピタゴラスイッチカバー つながりうた Eテレ オリジナルアニメーション"},{"id":"4xZ0B1g3LUI","t":"「たまご会議」 おとなのピタゴラスイッチ  Eテレ オリジナルアニメーション"},{"id":"LETUJ2ArTcg","t":"「こたつたこ」なぞなぞ編 おとなのピタゴラスイッチ 回文の歌 Eテレ オリジナルアニメーション"},{"id":"meKen0btf-c","t":"ビーだまビーすけの大冒険スペシャル全部入り+追加場面あり音質調整版 E-テレ NHK ピタゴラスイッチカバー"},{"id":"H6pPoYO10hg","t":"るかろか ピタゴラスイッチ Eテレ NHK けいのチァンネル"},{"id":"806eNZXFhT0","t":"効率第一ダンドリオン お掃除編 ピタゴラスイッチ好きなら必見！Eテレ新番組テキシコーより和牛のお二人によるアニメ Eテレ NHK"},{"id":"N0r5WlkdSh4","t":"パタトクカシー おとなのピタゴラスイッチ Eテレ オリジナルアニメーション"},{"id":"lz5K5aSnZXw","t":"「こたつたこ」その2 おとなのピタゴラスイッチ 回文の歌 Eテレ オリジナルアニメーション"},{"id":"lC2hxHBEqXI","t":"しめじソート おとなのピタゴラスイッチ Eテレ マージソート"},{"id":"ULrh9saGwAg","t":"ぽんほんぼんの歌 おとなのピタゴラスイッチ Eテレ オリジナルアニメーション"},{"id":"SwCbDgiCpTQ","t":"ビーだまビーすけの大冒険ファイナル ビーすけと黒玉王子の大脱出 おとなのピタゴラスイッチ Eテレ NHK"},{"id":"cZzjXk25W9E","t":"びーだまびーすけの大冒険 Ep3 プロローグ おとなのピタゴラスイッチ MarbleB suke Great Adventure Episode3 Prologue Eテレ NHK"},{"id":"dqaAC0EpwYU","t":"アルゴリズム体操 ピタゴラスイッチ あっちむいて二人でまえならえ"},{"id":"P_tYwzXUPvc","t":"ビーだまビーすけの大冒険番外編 黒玉軍のピタゴラ装置 おとなのピタゴラスイッチ Eテレ NHK"},{"id":"otobyfuehmc","t":"「こたつたこ」おとなのピタゴラスイッチ Eテレ 回文の歌 オリジナルアニメーション"}]}};
+
+/* ここから下の1行（JP_HOLIDAYS）も、毎朝GitHubの自動更新が書き換える（日本の祝日の一覧）。
+   休日判定（下の calcRestDay）に使う。VIDEO_LISTSと同じ仕組みで、
+   APP_VERSION の行から離れているため、版数を上げても自動更新とぶつからない。 */
+var JP_HOLIDAYS = {"2025-01-01":1,"2025-01-13":1,"2025-02-11":1,"2025-02-23":1,"2025-02-24":1,"2025-03-20":1,"2025-04-29":1,"2025-05-03":1,"2025-05-04":1,"2025-05-05":1,"2025-05-06":1,"2025-07-21":1,"2025-08-11":1,"2025-09-15":1,"2025-09-23":1,"2025-10-13":1,"2025-11-03":1,"2025-11-23":1,"2025-11-24":1,"2026-01-01":1,"2026-01-12":1,"2026-02-11":1,"2026-02-23":1,"2026-03-20":1,"2026-04-29":1,"2026-05-03":1,"2026-05-04":1,"2026-05-05":1,"2026-05-06":1,"2026-07-20":1,"2026-08-11":1,"2026-09-21":1,"2026-09-22":1,"2026-09-23":1,"2026-10-12":1,"2026-11-03":1,"2026-11-23":1,"2027-01-01":1,"2027-01-11":1,"2027-02-11":1,"2027-02-23":1,"2027-03-21":1,"2027-03-22":1,"2027-04-29":1,"2027-05-03":1,"2027-05-04":1,"2027-05-05":1,"2027-07-19":1,"2027-08-11":1,"2027-09-20":1,"2027-09-23":1,"2027-10-11":1,"2027-11-03":1,"2027-11-23":1};
+
+/* 園（KDI）の長期休み・休園日。しげのカレンダーの「KDI◯◯休み」「KDI休園日」の予定から、
+   CCが版を上げるたびに取り込む。[はじまりの日, おわりの日]（両はしの日をふくむ）。
+   表に無い急な休みは、設定画面の「きょうの クエストを 切りかえる」で対応する。 */
+var KDI_VACATIONS = [
+  ['2026-12-28','2027-01-01'],
+  ['2027-03-30','2027-03-31']
+];
 
 var DEFAULT_SETTINGS = {
   mainTasks: [
@@ -497,9 +516,19 @@ var DEFAULT_SETTINGS = {
     {e:'👕', t:'せんたくものを だす'},
     {e:'🍴', t:'カトラリーを だす'},
     {e:'🍚', t:'ごはんを ぜんぶ たべる'},
-    {e:'🛁', t:'おふろに はいる'},
+    {e:'🛁', t:'おふろに はいる', bath:1},
     {e:'✏️', t:'ワークを する'}
   ],
+  /* 休日（土日・祝日・園の長期休み）は、帰宅後ではなく1日の生活のクエストにする */
+  holidayTasks: [
+    {e:'👟', t:'くつを そろえる'},
+    {e:'💧', t:'てあらい・うがい'},
+    {e:'🍚', t:'ごはんを ぜんぶ たべる'},
+    {e:'🛁', t:'おふろに はいる', bath:1},
+    {e:'🧸', t:'おもちゃ・ほんを ぜんぶ かたづける'},
+    {e:'✏️', t:'ワークを する'}
+  ],
+  sentoBonusMin: 5,
   afterTasks: [
     {e:'😁', t:'はを みがく'},
     {e:'💦', t:'かおを あらう'},
@@ -608,6 +637,31 @@ function dateLabel(){
   return (d.getMonth()+1)+'がつ '+d.getDate()+'にち（'+w[d.getDay()]+'）';
 }
 
+/* ---------- 休日判定（土日・祝日・園の長期休み） ---------- */
+function calcRestDay(){
+  var d = new Date(), ds = todayStr(), i, r;
+  if (d.getDay() === 0 || d.getDay() === 6) return true;
+  if (JP_HOLIDAYS[ds]) return true;
+  for (i = 0; i < KDI_VACATIONS.length; i++) {
+    r = KDI_VACATIONS[i];
+    /* 日付の文字列（YYYY-MM-DD）は並び順がそのまま日付順なので、文字比べで範囲判定できる */
+    if (ds >= r[0] && ds <= r[1]) return true;
+  }
+  return false;
+}
+/* きょうのクエスト一覧。休日は別パターン（項目が入れかわる）。
+   判定結果は state.today に固定して持つ＝日をまたぐまで変わらない
+   （途中で入れかわると、できた印の位置がずれるため。手動切替は設定画面から）。 */
+function mainTaskList(){
+  return (state.today && state.today.rest) ? state.settings.holidayTasks : state.settings.mainTasks;
+}
+/* きょうのごほうび時間。せんとうを選んだ日はボーナスがつく */
+function rewardMinToday(){
+  var m = state.settings.rewardMin;
+  if (state.today && state.today.sento) m += (state.settings.sentoBonusMin || 5);
+  return m;
+}
+
 function ensureToday(){
   var t = todayStr();
   if (!state.today || state.today.date !== t) {
@@ -615,11 +669,16 @@ function ensureToday(){
       date: t, phase: 'main',
       doneMain: [], doneAfter: [],
       finishMin: null,
-      endAt: null
+      endAt: null,
+      rest: calcRestDay(),
+      sento: false
     };
     save();
     return true;
   }
+  /* 古い版で作られた「きょう」には休日判定が入っていないので、ここで埋める */
+  if (state.today.rest === undefined) { state.today.rest = calcRestDay(); save(); }
+  if (state.today.sento === undefined) { state.today.sento = false; }
   return false;
 }
 
@@ -1173,15 +1232,26 @@ function askConfirm(msg, yesLabel, noLabel, cb){
 
 /* ---------- タスクカード描画 ---------- */
 function buildCards(containerId, tasks, doneArr, kind){
-  var box = $(containerId), i, card, em, tx, stamp;
+  var box = $(containerId), i, card, em, tx, stamp, sub, isBath, asSento;
   while (box.firstChild) box.removeChild(box.firstChild);
   for (i = 0; i < tasks.length; i++) {
+    isBath = !!tasks[i].bath;
+    /* せんとうを選んで済ませた日は、おふろの札を♨️せんとうの見た目にする */
+    asSento = isBath && doneArr[i] && state.today && state.today.sento;
     card = document.createElement('div');
     card.className = 'card' + (doneArr[i] ? ' done' : '');
-    em = document.createElement('div'); em.className = 'c-emoji'; em.textContent = tasks[i].e;
-    tx = document.createElement('div'); tx.className = 'c-text'; tx.textContent = tasks[i].t;
+    em = document.createElement('div'); em.className = 'c-emoji';
+    em.textContent = asSento ? '♨️' : tasks[i].e;
+    tx = document.createElement('div'); tx.className = 'c-text';
+    tx.textContent = asSento ? 'せんとうに いく' : tasks[i].t;
     stamp = document.createElement('div'); stamp.className = 'c-stamp'; stamp.textContent = '💮';
-    card.appendChild(em); card.appendChild(tx); card.appendChild(stamp);
+    card.appendChild(em); card.appendChild(tx);
+    if (isBath && !doneArr[i]) {
+      sub = document.createElement('div'); sub.className = 'c-sub';
+      sub.textContent = '♨️せんとうなら ＋' + (state.settings.sentoBonusMin || 5) + 'ふん';
+      card.appendChild(sub);
+    }
+    card.appendChild(stamp);
     (function(idx, el){
       bindTap(el, function(){ onTaskTap(kind, idx, el); });
     })(i, card);
@@ -1196,14 +1266,37 @@ function renderProgress(elId, tasks, doneArr){
   return n;
 }
 function onTaskTap(kind, idx, el){
-  var tasks = kind === 'main' ? state.settings.mainTasks : state.settings.afterTasks;
+  var tasks = kind === 'main' ? mainTaskList() : state.settings.afterTasks;
   var done = kind === 'main' ? state.today.doneMain : state.today.doneAfter;
+  var isBath = !!tasks[idx].bath;
   if (done[idx]) {
     askConfirm('「' + tasks[idx].t + '」を とりけす？', 'とりけす', 'やめる', function(yes){
-      if (yes) { done[idx] = false; sndUndo(); save(); render(); }
+      if (yes) {
+        done[idx] = false;
+        if (isBath) state.today.sento = false;
+        sndUndo(); save(); render();
+      }
     });
     return;
   }
+  if (isBath) {
+    /* おふろの札だけは2択＝どちらを選んでも「できた」になる。せんとうはボーナスつき */
+    askConfirm('どっちに はいった？', '♨️ せんとう ＋' + (state.settings.sentoBonusMin || 5) + 'ふん', '🛁 おふろ', function(sen){
+      state.today.sento = !!sen;
+      finishTask(kind, idx, el, tasks, done);
+      /* 札の見た目もその場で切り替える（画面ぜんたいは作り直さない＝押した手応えを消さない） */
+      var divs = el.getElementsByTagName('div'), k;
+      for (k = 0; k < divs.length; k++) {
+        if (divs[k].className === 'c-sub') divs[k].style.display = 'none';
+        else if (sen && divs[k].className === 'c-emoji') divs[k].textContent = '♨️';
+        else if (sen && divs[k].className === 'c-text') divs[k].textContent = 'せんとうに いく';
+      }
+    });
+    return;
+  }
+  finishTask(kind, idx, el, tasks, done);
+}
+function finishTask(kind, idx, el, tasks, done){
   done[idx] = true;
   save();
   sndTap();
@@ -1276,7 +1369,10 @@ function dayPick(list){
 }
 function celeb1Contents(){
   var lines = [{ text: dayPick(PRAISE_MAIN) }];
-  lines.push({ text: 'どうがタイム ' + state.settings.rewardMin + 'ふん！' });
+  if (state.today.sento) {
+    lines.push({ text: '♨️ せんとうボーナス ＋' + (state.settings.sentoBonusMin || 5) + 'ふん！', bold: true });
+  }
+  lines.push({ text: 'どうがタイム ' + rewardMinToday() + 'ふん！' });
   return {
     hanamaru: true, title: 'はなまる！', lines: lines,
     btn: 'どうがタイムへ ▶',
@@ -1306,7 +1402,7 @@ function videoConf(){
   if (state.today.phase === 'video1') {
     return {
       kind: 1, title: 'どうがタイム',
-      minutes: state.settings.rewardMin,
+      minutes: rewardMinToday(),
       url: state.settings.videoMain, linkFallback: MAIN_LINK_URL
     };
   }
@@ -1509,13 +1605,14 @@ function tick(){
 
 /* ---------- 全体描画 ---------- */
 function render(){
-  $('hdDate').textContent = dateLabel();
+  /* 休日は日付の行に小さく印を出す（どちらのパターンで動いているか、おうちのひとにも分かる） */
+  $('hdDate').textContent = dateLabel() + (state.today.rest ? '　🌞おやすみのひ' : '');
   hideOverlays();
   var ph = state.today.phase;
   if (ph === 'main' || ph === 'celeb1') {
     showScreen('scrMain');
-    buildCards('mainCards', state.settings.mainTasks, state.today.doneMain, 'main');
-    renderProgress('hdProg', state.settings.mainTasks, state.today.doneMain);
+    buildCards('mainCards', mainTaskList(), state.today.doneMain, 'main');
+    renderProgress('hdProg', mainTaskList(), state.today.doneMain);
     if (ph === 'celeb1') {
       showCeleb(celeb1Contents());
       confetti();
@@ -1606,6 +1703,11 @@ var PRAISE_HINTS = [
 ];
 function openSettings(){
   $('praiseHint').textContent = dayPick(PRAISE_HINTS);
+  $('dayInfo').textContent = (state.today.rest ?
+      '休日パターン（土日・祝日・園の長期休み）で表示中。' :
+      '平日パターンで表示中。') +
+    (state.today.sento ? ' きょうは せんとうボーナス＋' + (state.settings.sentoBonusMin || 5) + '分。' : '') +
+    ' まちがっているときは「きょうの クエストを 切りかえる」で直せます。';
   $('stampInfo').textContent = 'いま ' + state.stamps + '個／' + state.settings.stampGoal +
     '個。たまったら「' + rewardName() + '」。スペシャルごほうび獲得 ' + state.rewardsGot + '回。';
   /* 動画が始まったか・失敗したかの記録。原因を追うための材料をそのまま出す。 */
@@ -1702,6 +1804,23 @@ $('quizOk').addEventListener('click', function(){
 }, false);
 $('quizCancel').addEventListener('click', function(){ $('ovQuiz').className = 'ov'; }, false);
 $('btnCloseSet').addEventListener('click', function(){ $('ovSettings').className = 'ov'; }, false);
+$('btnToggleRest').addEventListener('click', function(){
+  /* 休日⇄平日の手動切替（園の急な休みなど、表に無い日のため）。
+     クエストが先へ進んだあとに切り替えると、できた印の位置がずれるので、最初の画面のときだけ。 */
+  if (state.today.phase !== 'main') {
+    window.alert('きょうのクエストはもう先へ進んでいます。切り替えるには、先に「きょうを やりなおす」を押してください。');
+    return;
+  }
+  var to = state.today.rest ? '平日' : '休日';
+  if (window.confirm('きょうのクエスト一覧を「' + to + 'パターン」に切り替えます。チェック済みのクエストはやり直しになります。いいですか？')) {
+    state.today.rest = !state.today.rest;
+    state.today.doneMain = [];
+    state.today.sento = false;
+    save();
+    $('ovSettings').className = 'ov';
+    render();
+  }
+}, false);
 $('btnResetToday').addEventListener('click', function(){
   if (window.confirm('今日のチェックを全部消して最初からにします。いいですか？')) {
     var i;
