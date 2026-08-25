@@ -491,7 +491,7 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 12;
+var APP_VERSION = 13;
 
 /* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
    上の APP_VERSION と隣り合っていると、版数を上げたときに
@@ -542,6 +542,9 @@ var DEFAULT_SETTINGS = {
     {e:'🌙', t:'８じはんまでに ねる', bed:1}
   ],
   bedCutoff: '20:30',
+  /* ごほうび動画（どうがタイム）は、この時刻までに終わらせる。
+     クリアが遅いほど見られる時間が短くなる＝早く終わらせる理由になる。 */
+  videoEndBy: '20:15',
   rewardMin: 30,
   petitMin: 10,
   videoMain: 'https://www.youtube.com/playlist?list=UUC4107WX_cYsJ80fWjR5Hjw',
@@ -662,21 +665,33 @@ function calcRestDay(){
 function mainTaskList(){
   return (state.today && state.today.rest) ? state.settings.holidayTasks : state.settings.mainTasks;
 }
-/* きょうのごほうび時間。せんとうを選んだ日はボーナスがつく */
+/* きょうのごほうび時間（上限）。せんとうを選んだ日はボーナスがつく */
 function rewardMinToday(){
   var m = state.settings.rewardMin;
   if (state.today && state.today.sento) m += (state.settings.sentoBonusMin || 5);
   return m;
 }
+/* いま始めた場合に見られる時間。「終わりは videoEndBy」から逆算して短くする。
+   例＝終わり20:15・ふだん30ふんなら、19:45までにクリアすれば30ふん、
+   19:50なら25ふん、20:00なら15ふん。0いかなら、どうがタイムは無し。
+   いつ計っても「いまから見たら何分か」を返すので、始めた時刻が遅れても
+   終わりが videoEndBy を越えることはない。 */
+function rewardMinNow(){
+  var cap = videoEndByMin() - nowMin(), full = rewardMinToday();
+  if (cap < 0) cap = 0;
+  return (cap < full) ? cap : full;
+}
 
 /* ---------- ねる時間の判定（ねるまえのおやくそくの🌙の札） ---------- */
-function bedCutoffMin(){
-  var s = String(state.settings.bedCutoff || '20:30').split(':');
+function hhmmToMin(text, defH, defM){
+  var s = String(text || '').split(':');
   var h = parseInt(s[0], 10), m = parseInt(s[1], 10);
-  if (isNaN(h)) h = 20;
-  if (isNaN(m)) m = 30;
+  if (isNaN(h)) h = defH;
+  if (isNaN(m)) m = defM;
   return h * 60 + m;
 }
+function bedCutoffMin(){ return hhmmToMin(state.settings.bedCutoff, 20, 30); }
+function videoEndByMin(){ return hhmmToMin(state.settings.videoEndBy, 20, 15); }
 function nowMin(){
   var d = new Date();
   return d.getHours() * 60 + d.getMinutes();
@@ -1417,11 +1432,25 @@ function dayPick(list){
   return list[n % list.length];
 }
 function celeb1Contents(){
-  var lines = [{ text: dayPick(PRAISE_MAIN) }];
+  var lines = [{ text: dayPick(PRAISE_MAIN) }], mins = rewardMinNow();
   if (state.today.sento) {
     lines.push({ text: '♨️ せんとうボーナス ＋' + (state.settings.sentoBonusMin || 5) + 'ふん！', bold: true });
   }
-  lines.push({ text: 'どうがタイム ' + rewardMinToday() + 'ふん！' });
+  if (mins <= 0) {
+    /* 終わり時刻を過ぎている＝どうがタイムは無し。責めずに次へ送る */
+    lines.push({ text: 'きょうは どうがタイムの じかんが すぎちゃった' });
+    lines.push({ text: 'つぎは ねるまえの おやくそく だよ' });
+    return {
+      hanamaru: true, title: 'はなまる！', lines: lines,
+      btn: 'つぎへ ▶',
+      onBtn: function(){ state.today.phase = 'after'; save(); render(); }
+    };
+  }
+  if (mins < rewardMinToday()) {
+    /* 短くなった理由を、責めずに事実として伝える */
+    lines.push({ text: 'おわりは ' + state.settings.videoEndBy + ' まで だよ' });
+  }
+  lines.push({ text: 'どうがタイム ' + mins + 'ふん！' });
   return {
     hanamaru: true, title: 'はなまる！', lines: lines,
     btn: 'どうがタイムへ ▶',
@@ -1466,7 +1495,7 @@ function videoConf(){
   if (state.today.phase === 'video1') {
     return {
       kind: 1, title: 'どうがタイム',
-      minutes: rewardMinToday(),
+      minutes: rewardMinNow(),
       url: state.settings.videoMain, linkFallback: MAIN_LINK_URL
     };
   }
@@ -1483,6 +1512,13 @@ function renderVideo(){
   while (box.firstChild) box.removeChild(box.firstChild);
   $('vidNote').textContent = '';
   if (!state.today.endAt) {
+    if (c.kind === 1 && c.minutes <= 0) {
+      /* スタートを押さないまま終わり時刻を過ぎた場合も、ここで次へ送る */
+      state.today.phase = 'after';
+      save();
+      render();
+      return;
+    }
     setBigVid(false);
     $('vidStartWrap').style.display = 'block';
     $('vidStartNote').textContent = c.minutes + 'ふん みられるよ。じゅんびが できたら スタート！';
