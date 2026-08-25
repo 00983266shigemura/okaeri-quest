@@ -53,6 +53,9 @@ button { font-family:inherit; }
 .card .c-text { font-size:19px; font-weight:bold; margin-top:6px; line-height:1.35; }
 /* おふろの札に出す「せんとうなら＋5ふん」の小さな知らせ（選ぶ前から見える＝行きたくなる仕掛け） */
 .card .c-sub { font-size:13px; font-weight:bold; color:#CC79A7; margin-top:4px; }
+/* ねる時間を過ぎた🌙の札。灰色＋✕で表す（赤は使わない＝色覚配慮の冗長符号化） */
+.card.late { border-color:#9b9b9b; background:#f0f0f0; box-shadow:0 3px 0 rgba(0,0,0,0.15); }
+.card.late .c-stamp { display:block; color:#767676; }
 .card.done { border-color:#E69F00; background:#FFF6DC; box-shadow:0 3px 0 rgba(230,159,0,0.35); }
 .card.done .c-text { color:#8a6d00; }
 .card .c-stamp {
@@ -397,8 +400,8 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
 <div class="screen" id="scrNight">
   <div class="n-center">
     <div class="svgWrap"><svg id="svgNight" viewBox="0 0 240 240"></svg></div>
-    <h1>きょうも さいごまで やりきりました！</h1>
-    <p>おうちのひとと ハイタッチ！ ✋</p>
+    <h1 id="nightTitle">きょうも さいごまで やりきりました！</h1>
+    <p id="nightSub">おうちのひとと ハイタッチ！ ✋</p>
     <p style="margin-top:10px;">おやすみなさい 🌙</p>
   </div>
 </div>
@@ -488,7 +491,7 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 11;
+var APP_VERSION = 12;
 
 /* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
    上の APP_VERSION と隣り合っていると、版数を上げたときに
@@ -533,8 +536,12 @@ var DEFAULT_SETTINGS = {
     {e:'😁', t:'はを みがく'},
     {e:'💦', t:'かおを あらう'},
     {e:'🐾', t:'ペットの おせわ'},
-    {e:'🎒', t:'あしたの じゅんび'}
+    {e:'🎒', t:'あしたの じゅんび'},
+    /* bed:1 の札は指で押せない＝時計で自動判定。ほかの札が bedCutoff までに
+       全部できたら自動で💮になり、過ぎていたらピタゴラタイムとスタンプは無し */
+    {e:'🌙', t:'８じはんまでに ねる', bed:1}
   ],
+  bedCutoff: '20:30',
   rewardMin: 30,
   petitMin: 10,
   videoMain: 'https://www.youtube.com/playlist?list=UUC4107WX_cYsJ80fWjR5Hjw',
@@ -660,6 +667,25 @@ function rewardMinToday(){
   var m = state.settings.rewardMin;
   if (state.today && state.today.sento) m += (state.settings.sentoBonusMin || 5);
   return m;
+}
+
+/* ---------- ねる時間の判定（ねるまえのおやくそくの🌙の札） ---------- */
+function bedCutoffMin(){
+  var s = String(state.settings.bedCutoff || '20:30').split(':');
+  var h = parseInt(s[0], 10), m = parseInt(s[1], 10);
+  if (isNaN(h)) h = 20;
+  if (isNaN(m)) m = 30;
+  return h * 60 + m;
+}
+function nowMin(){
+  var d = new Date();
+  return d.getHours() * 60 + d.getMinutes();
+}
+function bedTimeOver(){ return nowMin() > bedCutoffMin(); }
+function bedSubText(){
+  var r = bedCutoffMin() - nowMin();
+  if (r < 0) return 'ねる じかんを すぎちゃった';
+  return 'あと ' + r + 'ふん';
 }
 
 function ensureToday(){
@@ -1232,23 +1258,33 @@ function askConfirm(msg, yesLabel, noLabel, cb){
 
 /* ---------- タスクカード描画 ---------- */
 function buildCards(containerId, tasks, doneArr, kind){
-  var box = $(containerId), i, card, em, tx, stamp, sub, isBath, asSento;
+  var box = $(containerId), i, card, em, tx, stamp, sub, isBath, asSento, isBed, bedLate;
   while (box.firstChild) box.removeChild(box.firstChild);
   for (i = 0; i < tasks.length; i++) {
     isBath = !!tasks[i].bath;
+    isBed = !!tasks[i].bed;
     /* せんとうを選んで済ませた日は、おふろの札を♨️せんとうの見た目にする */
     asSento = isBath && doneArr[i] && state.today && state.today.sento;
+    /* ねる時間に間に合わなかった日は、🌙の札を灰色＋✕にする */
+    bedLate = isBed && state.today && state.today.bedOk === false;
     card = document.createElement('div');
-    card.className = 'card' + (doneArr[i] ? ' done' : '');
+    card.className = 'card' + (doneArr[i] ? ' done' : '') + (bedLate ? ' late' : '');
     em = document.createElement('div'); em.className = 'c-emoji';
     em.textContent = asSento ? '♨️' : tasks[i].e;
     tx = document.createElement('div'); tx.className = 'c-text';
     tx.textContent = asSento ? 'せんとうに いく' : tasks[i].t;
-    stamp = document.createElement('div'); stamp.className = 'c-stamp'; stamp.textContent = '💮';
+    stamp = document.createElement('div'); stamp.className = 'c-stamp';
+    stamp.textContent = bedLate ? '✕' : '💮';
     card.appendChild(em); card.appendChild(tx);
     if (isBath && !doneArr[i]) {
       sub = document.createElement('div'); sub.className = 'c-sub';
       sub.textContent = '♨️せんとうなら ＋' + (state.settings.sentoBonusMin || 5) + 'ふん';
+      card.appendChild(sub);
+    }
+    if (isBed && !doneArr[i]) {
+      sub = document.createElement('div'); sub.className = 'c-sub';
+      sub.id = 'bedSub';
+      sub.textContent = bedSubText();
       card.appendChild(sub);
     }
     card.appendChild(stamp);
@@ -1269,6 +1305,11 @@ function onTaskTap(kind, idx, el){
   var tasks = kind === 'main' ? mainTaskList() : state.settings.afterTasks;
   var done = kind === 'main' ? state.today.doneMain : state.today.doneAfter;
   var isBath = !!tasks[idx].bath;
+  if (tasks[idx].bed) {
+    /* 🌙の札は指で押せない＝時計が判定する。押されたら意味だけ伝える */
+    floatText(el, bedTimeOver() ? 'もう ねる じかん！' : 'それまでに ねようね');
+    return;
+  }
   if (done[idx]) {
     askConfirm('「' + tasks[idx].t + '」を とりけす？', 'とりけす', 'やめる', function(yes){
       if (yes) {
@@ -1311,7 +1352,7 @@ function finishTask(kind, idx, el, tasks, done){
     }
   } else {
     renderProgress('hdProgAfter', tasks, done);
-    if (countDone(done, tasks.length) === tasks.length) {
+    if (nonBedAllDone(tasks, done)) {
       setTimeout(completeAfter, 650);
     }
   }
@@ -1320,6 +1361,14 @@ function countDone(arr, n){
   var i, c = 0;
   for (i = 0; i < n; i++) if (arr[i]) c++;
   return c;
+}
+/* 🌙以外の札が全部できたか（🌙は指でなく時計が判定するため、数えから外す） */
+function nonBedAllDone(tasks, done){
+  var i;
+  for (i = 0; i < tasks.length; i++) {
+    if (!tasks[i].bed && !done[i]) return false;
+  }
+  return true;
 }
 
 /* ---------- フェーズ進行 ---------- */
@@ -1381,6 +1430,21 @@ function celeb1Contents(){
 }
 function completeAfter(){
   if (state.today.phase !== 'after') return;
+  var tasks = state.settings.afterTasks, i, bi = -1;
+  for (i = 0; i < tasks.length; i++) if (tasks[i].bed) bi = i;
+  if (bi >= 0) {
+    if (bedTimeOver()) {
+      /* ねる時間を過ぎた＝ピタゴラタイムとスタンプは無しで、そのままおやすみへ */
+      state.today.bedOk = false;
+      state.today.phase = 'night';
+      save();
+      render();
+      return;
+    }
+    /* 間に合った＝🌙の札を自動で💮にする */
+    state.today.bedOk = true;
+    state.today.doneAfter[bi] = true;
+  }
   state.today.phase = 'celeb2';
   save();
   render();
@@ -1581,6 +1645,11 @@ function hideCeleb(){ $('ovCeleb').className = 'ov'; celebBtnAction = null; }
 function tick(){
   if (ensureToday()) { render(); return; }
   var ph = state.today.phase;
+  if (ph === 'after') {
+    /* 🌙の札の「あと ○ふん」を時計に合わせて更新する */
+    var bs = $('bedSub');
+    if (bs && bs.textContent !== bedSubText()) bs.textContent = bedSubText();
+  }
   if ((ph === 'video1' || ph === 'video2') && state.today.endAt) {
     var c = videoConf();
     var remain = state.today.endAt - Date.now();
@@ -1643,8 +1712,16 @@ var nightDrawn = '';
 function drawNight(){
   if (nightDrawn === state.today.date) return;
   nightDrawn = state.today.date;
-  drawHanamaru($('svgNight'));
-  confetti();
+  var ok = !state.today || state.today.bedOk !== false;
+  $('nightTitle').textContent = ok ? 'きょうも さいごまで やりきりました！' :
+    'きょうは ここまで。もう ねる じかん！';
+  $('nightSub').textContent = ok ? 'おうちのひとと ハイタッチ！ ✋' :
+    'あしたは ８じはんまでに ねよう ⏰';
+  /* 間に合わなかった日は、花丸と紙吹雪は出さない（ごほうびの意味を守る）。音だけやさしく鳴らす */
+  if (ok) {
+    drawHanamaru($('svgNight'));
+    confetti();
+  }
   sndNight();
 }
 
