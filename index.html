@@ -53,6 +53,8 @@ button { font-family:inherit; }
 .card .c-text { font-size:19px; font-weight:bold; margin-top:6px; line-height:1.35; }
 /* おふろの札に出す「せんとうなら＋5ふん」の小さな知らせ（選ぶ前から見える＝行きたくなる仕掛け） */
 .card .c-sub { font-size:13px; font-weight:bold; color:#CC79A7; margin-top:4px; }
+/* 札の意味を補う説明（ごほうびの案内ではないので、目立たせない） */
+.card .c-sub.plain { color:#777; font-weight:normal; }
 /* ねる時間を過ぎた🌙の札。灰色＋✕で表す（赤は使わない＝色覚配慮の冗長符号化） */
 .card.late { border-color:#9b9b9b; background:#f0f0f0; box-shadow:0 3px 0 rgba(0,0,0,0.15); }
 .card.late .c-stamp { display:block; color:#767676; }
@@ -491,7 +493,7 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 13;
+var APP_VERSION = 14;
 
 /* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
    上の APP_VERSION と隣り合っていると、版数を上げたときに
@@ -537,6 +539,7 @@ var DEFAULT_SETTINGS = {
     {e:'💦', t:'かおを あらう'},
     {e:'🐾', t:'ペットの おせわ'},
     {e:'🎒', t:'あしたの じゅんび'},
+    {e:'🧹', t:'おかたづけ', sub:'ゆかに おもちゃや ほんが ない'},
     /* bed:1 の札は指で押せない＝時計で自動判定。ほかの札が bedCutoff までに
        全部できたら自動で💮になり、過ぎていたらピタゴラタイムとスタンプは無し */
     {e:'🌙', t:'８じはんまでに ねる', bed:1}
@@ -1300,6 +1303,11 @@ function buildCards(containerId, tasks, doneArr, kind){
       sub = document.createElement('div'); sub.className = 'c-sub';
       sub.id = 'bedSub';
       sub.textContent = bedSubText();
+      card.appendChild(sub);
+    }
+    if (tasks[i].sub && !doneArr[i]) {
+      sub = document.createElement('div'); sub.className = 'c-sub plain';
+      sub.textContent = tasks[i].sub;
       card.appendChild(sub);
     }
     card.appendChild(stamp);
