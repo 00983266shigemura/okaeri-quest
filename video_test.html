@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>どうが しらべ</title>
+<!--
+  これは「おかえりクエスト」本体とは別の、原因しらべ専用のページ。
+  本体（index.html）には一切さわらない＝失敗しても子どもの利用に影響しない。
+
+  目的＝2012年iPad(iOS 10.3.3)でYouTubeの埋め込みが動かない原因を、
+  実機の上で条件を変えて一度に切り分ける。
+
+  書き方は本体と同じくES5のみ（var・function。=>・class・テンプレート文字列は使わない）。
+-->
+<style>
+  body {
+    margin:0; padding:10px 12px 40px;
+    font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;
+    background:#fff; color:#1a1a2e; font-size:15px; line-height:1.5;
+  }
+  h1 { font-size:19px; margin:0 0 4px; }
+  .sub { font-size:12px; color:#555; margin:0 0 10px; }
+  #now {
+    background:#0072B2; color:#fff; padding:8px 12px; border-radius:8px;
+    font-size:15px; font-weight:bold; margin-bottom:8px;
+  }
+  table { border-collapse:collapse; width:100%; font-size:13px; }
+  th,td { border:1px solid #bbb; padding:4px 6px; text-align:left; }
+  th { background:#eef1f6; }
+  td.res { font-weight:bold; }
+  /* 色だけに頼らない＝記号と文字も必ず添える（赤緑は意味の区別に使わない） */
+  .ok   { color:#0072B2; }   /* 青 */
+  .ng   { color:#CC79A7; }   /* 紫 */
+  .wait { color:#E69F00; }   /* 橙 */
+  /* 枠は本番（1024x576）に近い16:9で出す＝小さい枠だと結果が変わる可能性を潰す。
+     ぜんぶ終わったら隠す＝しげのスクショ1枚に表が収まるようにするため。 */
+  #frameBox {
+    position:relative; width:640px; height:360px; max-width:100%; margin:8px 0;
+    background:#000; overflow:hidden;
+  }
+  #frameBox.hide { display:none; }
+  #frameBox iframe { position:absolute; left:0; top:0; width:640px; height:360px; border:0; }
+  .note { font-size:12px; color:#444; margin:8px 0; }
+  #done { display:none; background:#009E73; color:#fff; padding:10px 12px; border-radius:8px; font-weight:bold; }
+  button { font-size:16px; padding:8px 16px; border-radius:8px; border:1px solid #0072B2; background:#fff; color:#0072B2; }
+</style>
+</head>
+<body>
+
+<h1>どうが しらべ</h1>
+<p class="sub">おかえりクエスト本体とは別のページ。原因の切り分け専用。</p>
+
+<div id="now">じゅんび中…</div>
+
+<div id="frameBox"></div>
+
+<h2 style="font-size:15px;margin:12px 0 4px;">① この iPad が持っている機能</h2>
+<table id="capTable"><tbody></tbody></table>
+
+<h2 style="font-size:15px;margin:14px 0 4px;">② 埋め込みの呼び方くらべ</h2>
+<table id="resTable">
+  <thead><tr><th>#</th><th>じょうけん</th><th>枠</th><th>返事</th><th>秒</th></tr></thead>
+  <tbody></tbody>
+</table>
+
+<p class="note">
+  「枠」＝YouTubeのページが届いたか。「返事」＝中のプレーヤーが動き出して応答したか。<br>
+  失敗の正体は「返事」が来ないことなので、ここが条件によって変わるかを見る。
+</p>
+
+<div id="done">ぜんぶ おわりました。この画面をスクショして送ってください。</div>
+
+<script>
+/* ================= ① 端末の持ち物しらべ ================= */
+/* 文法が読めるかは eval で判定する（読めないと SyntaxError が飛ぶ）。
+   ページ本体に直接書くと、読めない端末ではページ全体が止まるため必ず eval + try で包む。 */
+function synOK(code){
+  try { eval(code); return true; } catch(e){ return false; }
+}
+function has(obj, name){
+  try { return typeof obj[name] !== 'undefined' && obj[name] !== null; } catch(e){ return false; }
+}
+var caps = [
+  ['アロー関数 =>',      function(){ return synOK('var _f=(function(){return 0}); eval("(function(){return (x)=>x})") '); }],
+  ['class 構文',         function(){ return synOK('eval("(class _T{})")'); }],
+  ['テンプレート文字列', function(){ return synOK('var _t=1; eval("`x${_t}`")'); }],
+  ['Promise',            function(){ return has(window,'Promise'); }],
+  ['fetch',              function(){ return has(window,'fetch'); }],
+  ['Object.values',      function(){ return has(Object,'values'); }],
+  ['MediaSource（動画の細切れ読み）', function(){ return has(window,'MediaSource'); }],
+  ['postMessage',        function(){ return has(window,'postMessage'); }],
+  ['IntersectionObserver', function(){ return has(window,'IntersectionObserver'); }],
+  ['AbortController',    function(){ return has(window,'AbortController'); }]
+];
+(function(){
+  var tb = document.getElementById('capTable').getElementsByTagName('tbody')[0];
+  var i, c, ok, tr, td;
+  for (i = 0; i < caps.length; i++) {
+    c = caps[i];
+    if (!c) { continue; }
+    try { ok = c[1](); } catch(e){ ok = false; }
+    tr = document.createElement('tr');
+    td = document.createElement('td'); td.textContent = c[0]; tr.appendChild(td);
+    td = document.createElement('td');
+    td.className = 'res ' + (ok ? 'ok' : 'ng');
+    td.textContent = ok ? '✓ ある' : '✕ ない';
+    tr.appendChild(td);
+    tb.appendChild(tr);
+  }
+})();
+
+/* ================= ② 埋め込みの呼び方くらべ ================= */
+var VID_A = 'H6pPoYO10hg';   /* 8/27に何度も失敗した動画 */
+var VID_B = 'SwCbDgiCpTQ';   /* 8/27に成功した動画 */
+var ORIGIN = location.protocol + '//' + location.host;
+
+var TESTS = [
+  { name: '今の作り（リスト無し）',      url: 'https://www.youtube.com/embed/' + VID_A + '?playsinline=1&rel=0&controls=1&enablejsapi=1&iv_load_policy=3' },
+  { name: 'origin を付ける',             url: 'https://www.youtube.com/embed/' + VID_A + '?playsinline=1&rel=0&controls=1&enablejsapi=1&iv_load_policy=3&origin=' + encodeURIComponent(ORIGIN) },
+  { name: 'nocookie',                    url: 'https://www.youtube-nocookie.com/embed/' + VID_A + '?playsinline=1&rel=0&controls=1&enablejsapi=1' },
+  { name: 'enablejsapi なし（素）',      url: 'https://www.youtube.com/embed/' + VID_A + '?playsinline=1&rel=0&controls=1' },
+  { name: 'widget_referrer を付ける',    url: 'https://www.youtube.com/embed/' + VID_A + '?playsinline=1&rel=0&controls=1&enablejsapi=1&widget_referrer=' + encodeURIComponent(ORIGIN) },
+  { name: '成功した動画で同じ作り',      url: 'https://www.youtube.com/embed/' + VID_B + '?playsinline=1&rel=0&controls=1&enablejsapi=1&iv_load_policy=3' }
+];
+
+var WAIT_MS = 22000;   /* 1件あたりの待ち時間。実機の成功例が最長20秒だったので余裕を見て22秒 */
+var idx = -1;
+var cur = null;        /* { loaded:bool, loadMs:n, live:bool, liveMs:n, start:n, row:el } */
+var timer = null;
+
+function $(id){ return document.getElementById(id); }
+
+function setNow(txt){ $('now').textContent = txt; }
+
+function makeRow(n, name){
+  var tb = $('resTable').getElementsByTagName('tbody')[0];
+  var tr = document.createElement('tr'), td;
+  td = document.createElement('td'); td.textContent = String(n); tr.appendChild(td);
+  td = document.createElement('td'); td.textContent = name; tr.appendChild(td);
+  td = document.createElement('td'); td.className = 'res wait'; td.textContent = '…'; tr.appendChild(td);
+  td = document.createElement('td'); td.className = 'res wait'; td.textContent = '…'; tr.appendChild(td);
+  td = document.createElement('td'); td.textContent = '…'; tr.appendChild(td);
+  tb.appendChild(tr);
+  return tr;
+}
+
+function paint(){
+  if (!cur) { return; }
+  var c = cur.row.getElementsByTagName('td');
+  c[2].className = 'res ' + (cur.loaded ? 'ok' : 'wait');
+  c[2].textContent = cur.loaded ? ('✓ 届いた' + Math.round(cur.loadMs / 1000) + '秒') : '…';
+  c[3].className = 'res ' + (cur.live ? 'ok' : 'wait');
+  c[3].textContent = cur.live ? ('✓ あり' + Math.round(cur.liveMs / 1000) + '秒') : '…';
+  c[4].textContent = String(Math.round((new Date().getTime() - cur.start) / 1000));
+}
+
+function finishRow(){
+  if (!cur) { return; }
+  var c = cur.row.getElementsByTagName('td');
+  if (!cur.loaded) { c[2].className = 'res ng'; c[2].textContent = '✕ 届かず'; }
+  if (!cur.live)   { c[3].className = 'res ng'; c[3].textContent = '✕ なし'; }
+  c[4].textContent = String(Math.round(WAIT_MS / 1000));
+}
+
+/* YouTubeからの返事を受け取る。どの枠からの返事かは区別できないが、
+   一度に1つしか枠を出さないので取り違えは起きない。 */
+function onMsg(ev){
+  if (!cur) { return; }
+  if (typeof ev.data !== 'string') { return; }
+  if (String(ev.origin).indexOf('youtube') < 0) { return; }
+  if (!cur.live) {
+    cur.live = true;
+    cur.liveMs = new Date().getTime() - cur.start;
+  }
+  paint();
+}
+if (window.addEventListener) { window.addEventListener('message', onMsg, false); }
+else { window.attachEvent('onmessage', onMsg); }
+
+function clearFrame(){
+  var box = $('frameBox');
+  while (box.firstChild) { box.removeChild(box.firstChild); }
+}
+
+function next(){
+  if (timer) { clearInterval(timer); timer = null; }
+  if (cur) { finishRow(); }
+  clearFrame();
+  idx = idx + 1;
+  if (idx >= TESTS.length) {
+    cur = null;
+    setNow('おわりました（この画面を スクショしてください）');
+    /* 枠を消して、2つの表が1画面に収まるようにする＝スクショ1枚で全部が写る */
+    $('frameBox').className = 'hide';
+    $('done').style.display = 'block';
+    return;
+  }
+  var t = TESTS[idx];
+  setNow('しらべ中 ' + (idx + 1) + '/' + TESTS.length + '：' + t.name);
+
+  cur = { loaded:false, loadMs:0, live:false, liveMs:0,
+          start:new Date().getTime(), row:makeRow(idx + 1, t.name) };
+
+  var f = document.createElement('iframe');
+  f.setAttribute('allowfullscreen', 'true');
+  f.style.width = '640px';
+  f.style.height = '360px';
+  f.onload = function(){
+    if (cur && !cur.loaded) {
+      cur.loaded = true;
+      cur.loadMs = new Date().getTime() - cur.start;
+      paint();
+    }
+  };
+  f.src = t.url;
+  $('frameBox').appendChild(f);
+
+  /* こちらから握手の声をかけ続ける（本体アプリと同じやり方） */
+  timer = setInterval(function(){
+    var el = new Date().getTime() - cur.start;
+    if (!cur.live) {
+      var fr = $('frameBox').getElementsByTagName('iframe')[0];
+      if (fr && fr.contentWindow) {
+        try {
+          fr.contentWindow.postMessage(
+            '{"event":"listening","id":1,"channel":"widget"}', '*');
+        } catch(e){}
+      }
+    }
+    paint();
+    if (el > WAIT_MS) { next(); }
+  }, 1000);
+}
+
+/* すぐ始めず、しげが読む時間をとってからボタンで開始する
+   （読み込み直後に始めると、画面を見る前に1件目が終わってしまう） */
+(function(){
+  var b = document.createElement('button');
+  b.textContent = 'しらべを はじめる';
+  b.onclick = function(){
+    b.parentNode.removeChild(b);
+    next();
+  };
+  $('now').parentNode.insertBefore(b, $('now').nextSibling);
+  setNow('したの ボタンを おしてください（ぜんぶで 2分ちょっと）');
+})();
+</script>
+</body>
+</html>
