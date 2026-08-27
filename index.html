@@ -24,6 +24,7 @@ button { font-family:inherit; }
   overflow-y:auto; -webkit-overflow-scrolling:touch;
   display:none; padding:16px 14px 60px;
 }
+.screen.hasBar { padding-bottom:110px; }
 .screen.on { display:block; }
 
 .hd { text-align:center; margin-bottom:10px; }
@@ -55,9 +56,6 @@ button { font-family:inherit; }
 .card .c-sub { font-size:13px; font-weight:bold; color:#CC79A7; margin-top:4px; }
 /* 札の意味を補う説明（ごほうびの案内ではないので、目立たせない） */
 .card .c-sub.plain { color:#777; font-weight:normal; }
-/* ねる時間を過ぎた🌙の札。灰色＋✕で表す（赤は使わない＝色覚配慮の冗長符号化） */
-.card.late { border-color:#9b9b9b; background:#f0f0f0; box-shadow:0 3px 0 rgba(0,0,0,0.15); }
-.card.late .c-stamp { display:block; color:#767676; }
 .card.done { border-color:#E69F00; background:#FFF6DC; box-shadow:0 3px 0 rgba(230,159,0,0.35); }
 .card.done .c-text { color:#8a6d00; }
 .card .c-stamp {
@@ -84,6 +82,37 @@ button { font-family:inherit; }
   border-radius:12px; font-size:14px; padding:6px 12px; cursor:pointer;
 }
 .note { font-size:14px; color:#888; line-height:1.6; }
+
+/* おかえり画面 */
+.w-center { text-align:center; padding-top:40px; }
+.w-title { font-size:40px; color:#0072B2; font-weight:bold; margin-bottom:18px; }
+.w-msg { font-size:24px; line-height:1.7; margin-bottom:28px; }
+
+/* しめきりバー（のこり時間の棒グラフ）。
+   画面の下に固定して、減っていく棒と数字の両方で「あとどれくらいか」を見せる。
+   色だけに頼らず、ことば（あと○ふん／じかん オーバー）も必ず出す。 */
+.limitBar {
+  position:fixed; left:0; right:0; bottom:0; z-index:20;
+  background:rgba(255,249,232,0.96); border-top:2px solid #e6ddc4;
+  padding:8px 14px 10px;
+}
+.lb-row {
+  display:-webkit-flex; display:flex;
+  -webkit-justify-content:space-between; justify-content:space-between;
+  -webkit-align-items:baseline; align-items:baseline;
+  margin-bottom:5px;
+}
+.lb-label { font-size:15px; color:#666; }
+.lb-time { font-size:26px; font-weight:bold; color:#0072B2; }
+.lb-track { height:16px; border-radius:8px; background:#e2e2e2; overflow:hidden; }
+.lb-fill {
+  height:16px; border-radius:8px; background:#0072B2; width:100%;
+  -webkit-transition:width 0.5s linear; transition:width 0.5s linear;
+}
+.limitBar.warn .lb-time { color:#E69F00; }
+.limitBar.warn .lb-fill { background:#E69F00; }
+.limitBar.over .lb-time { color:#D55E00; }
+.limitBar.over .lb-fill { background:#D55E00; }
 
 /* 動画画面 */
 .v-head { display:-webkit-flex; display:flex; -webkit-justify-content:space-between; justify-content:space-between; -webkit-align-items:center; align-items:center; }
@@ -326,13 +355,41 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
 
 <button id="btnGear">⚙</button>
 
+<div class="screen" id="scrWelcome">
+  <div class="hd">
+    <div class="hd-date" id="hdDateW"></div>
+  </div>
+  <div class="w-center">
+    <div class="w-title">おかえりなさい！</div>
+    <div class="w-msg" id="welcomeMsg"></div>
+    <button class="bigBtn orange" id="btnChallenge">チャレンジ！</button>
+  </div>
+</div>
+
 <div class="screen" id="scrMain">
   <div class="hd">
     <div class="hd-date" id="hdDate"></div>
-    <h1 class="hd-title">きょうの クエスト</h1>
+    <h1 class="hd-title" id="hdTitle1">クエスト&#9312;</h1>
     <div class="hd-progress" id="hdProg"></div>
   </div>
   <div class="cards" id="mainCards"></div>
+  <div class="limitBar" id="limit1">
+    <div class="lb-row"><span class="lb-label" id="lb1Label"></span><span class="lb-time" id="lb1Time"></span></div>
+    <div class="lb-track"><div class="lb-fill" id="lb1Fill"></div></div>
+  </div>
+</div>
+
+<div class="screen" id="scrMain2">
+  <div class="hd">
+    <div class="hd-date" id="hdDate2"></div>
+    <h1 class="hd-title">クエスト&#9313;</h1>
+    <div class="hd-progress" id="hdProg2"></div>
+  </div>
+  <div class="cards" id="main2Cards"></div>
+  <div class="limitBar" id="limit2">
+    <div class="lb-row"><span class="lb-label" id="lb2Label"></span><span class="lb-time" id="lb2Time"></span></div>
+    <div class="lb-track"><div class="lb-fill" id="lb2Fill"></div></div>
+  </div>
 </div>
 
 <div class="screen" id="scrVideo">
@@ -385,6 +442,10 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
     <div class="hd-progress" id="hdProgAfter"></div>
   </div>
   <div class="cards" id="afterCards"></div>
+  <div class="limitBar" id="limit3">
+    <div class="lb-row"><span class="lb-label" id="lb3Label"></span><span class="lb-time" id="lb3Time"></span></div>
+    <div class="lb-track"><div class="lb-fill" id="lb3Fill"></div></div>
+  </div>
 </div>
 
 <div class="screen" id="scrStamp">
@@ -493,7 +554,7 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 14;
+var APP_VERSION = 15;
 
 /* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
    上の APP_VERSION と隣り合っていると、版数を上げたときに
@@ -515,22 +576,30 @@ var KDI_VACATIONS = [
 ];
 
 var DEFAULT_SETTINGS = {
+  /* クエスト① いえに ついたら すぐ やること（10ぷんの チャレンジ） */
   mainTasks: [
     {e:'👟', t:'くつを そろえる'},
     {e:'💧', t:'てあらい・うがい'},
     {e:'👕', t:'せんたくものを だす'},
-    {e:'🍴', t:'カトラリーを だす'},
-    {e:'🍚', t:'ごはんを ぜんぶ たべる'},
+    {e:'🍴🍵', t:'カトラリー・すいとうを だす'},
+    {e:'🎒', t:'カバンを かたづける'}
+  ],
+  /* クエスト② そのあと ゆっくり やること（7:45までの めやす） */
+  mainTasks2: [
+    {e:'🍚', t:'ごはんを ぜんぶ たべる', sub:'たべるとき たちあるかない'},
     {e:'🛁', t:'おふろに はいる', bath:1},
     {e:'✏️', t:'ワークを する'}
   ],
+  /* チャレンジの持ち時間（ぷん）と、クエスト②の めやすの時刻 */
+  challengeMin: 10,
+  quest2By: '19:45',
   /* 休日（土日・祝日・園の長期休み）は、帰宅後ではなく1日の生活のクエストにする */
   holidayTasks: [
     {e:'👟', t:'くつを そろえる'},
     {e:'💧', t:'てあらい・うがい'},
-    {e:'🍚', t:'ごはんを ぜんぶ たべる'},
+    {e:'🍚', t:'ごはんを ぜんぶ たべる', sub:'たべるとき たちあるかない'},
     {e:'🛁', t:'おふろに はいる', bath:1},
-    {e:'🧸', t:'おもちゃ・ほんを ぜんぶ かたづける'},
+    {e:'📦', t:'おもちゃ・ほんを ぜんぶ かたづける'},
     {e:'✏️', t:'ワークを する'}
   ],
   sentoBonusMin: 5,
@@ -539,10 +608,7 @@ var DEFAULT_SETTINGS = {
     {e:'💦', t:'かおを あらう'},
     {e:'🐾', t:'ペットの おせわ'},
     {e:'🎒', t:'あしたの じゅんび'},
-    {e:'🧹', t:'おかたづけ', sub:'ゆかに おもちゃや ほんが ない'},
-    /* bed:1 の札は指で押せない＝時計で自動判定。ほかの札が bedCutoff までに
-       全部できたら自動で💮になり、過ぎていたらピタゴラタイムとスタンプは無し */
-    {e:'🌙', t:'８じはんまでに ねる', bed:1}
+    {e:'📦', t:'おかたづけ', sub:'ゆかに おもちゃや ほんが ない'}
   ],
   bedCutoff: '20:30',
   /* ごほうび動画（どうがタイム）は、この時刻までに終わらせる。
@@ -668,6 +734,12 @@ function calcRestDay(){
 function mainTaskList(){
   return (state.today && state.today.rest) ? state.settings.holidayTasks : state.settings.mainTasks;
 }
+/* クエスト②の札。休日は1枚の画面のままなので、②は使わない（空） */
+function main2TaskList(){
+  return (state.today && state.today.rest) ? [] : state.settings.mainTasks2;
+}
+/* 休日は1枚の画面＝クエスト①だけで完了。平日は①→②の2枚 */
+function hasQuest2(){ return main2TaskList().length > 0; }
 /* きょうのごほうび時間（上限）。せんとうを選んだ日はボーナスがつく */
 function rewardMinToday(){
   var m = state.settings.rewardMin;
@@ -700,22 +772,80 @@ function nowMin(){
   return d.getHours() * 60 + d.getMinutes();
 }
 function bedTimeOver(){ return nowMin() > bedCutoffMin(); }
-function bedSubText(){
-  var r = bedCutoffMin() - nowMin();
-  if (r < 0) return 'ねる じかんを すぎちゃった';
-  return 'あと ' + r + 'ふん';
+function quest2ByMin(){ return hhmmToMin(state.settings.quest2By, 19, 45); }
+
+/* ---------- しめきりバー（のこり時間の棒グラフ） ----------
+   remainSec = のこり秒（マイナス＝過ぎている）／totalSec = 満タンのときの秒数。
+   棒の長さと数字とことばの3つで伝える（色だけに頼らない）。 */
+function drawLimitBar(boxId, labelId, timeId, fillId, label, remainSec, totalSec){
+  var box = $(boxId), r = remainSec, frac;
+  if (!box) return;
+  $(labelId).textContent = label;
+  frac = (totalSec > 0) ? (r / totalSec) : 0;
+  if (frac < 0) frac = 0;
+  if (frac > 1) frac = 1;
+  $(fillId).style.width = (frac * 100) + '%';
+  if (r < 0) {
+    box.className = 'limitBar over';
+    $(timeId).textContent = 'じかん オーバー';
+  } else {
+    box.className = 'limitBar' + (r <= 120 ? ' warn' : '');
+    $(timeId).textContent = fmtRemain(r * 1000);
+  }
 }
+/* クエスト①＝始めてから challengeMin ぷんの持ち時間 */
+function ch1RemainSec(){
+  var total = (state.settings.challengeMin || 10) * 60;
+  if (!state.today.chStart) return total;
+  return total - Math.floor((Date.now() - state.today.chStart) / 1000);
+}
+/* クエスト②・ねるまえ＝時計のしめきりまでの残り */
+function untilClockSec(limitMin){
+  var d = new Date();
+  return limitMin * 60 - (d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds());
+}
+function updateLimitBars(){
+  var ph = state.today.phase, total;
+  if (ph === 'main' && !state.today.rest) {
+    total = (state.settings.challengeMin || 10) * 60;
+    drawLimitBar('limit1', 'lb1Label', 'lb1Time', 'lb1Fill',
+      (state.settings.challengeMin || 10) + 'ぷん チャレンジ', ch1RemainSec(), total);
+  } else if (ph === 'main2') {
+    /* 満タンの基準は「クエスト①が終わった時刻からしめきりまで」＝始めた時点で満タンに見える */
+    total = state.today.q2Total || (30 * 60);
+    drawLimitBar('limit2', 'lb2Label', 'lb2Time', 'lb2Fill',
+      state.settings.quest2By + ' まで', untilClockSec(quest2ByMin()), total);
+  } else if (ph === 'after') {
+    total = state.today.afterTotal || (30 * 60);
+    drawLimitBar('limit3', 'lb3Label', 'lb3Time', 'lb3Fill',
+      state.settings.bedCutoff + ' までに ねる', untilClockSec(bedCutoffMin()), total);
+  }
+}
+
 
 function ensureToday(){
   var t = todayStr();
   if (!state.today || state.today.date !== t) {
     state.today = {
-      date: t, phase: 'main',
-      doneMain: [], doneAfter: [],
+      date: t, phase: calcRestDay() ? 'main' : 'welcome',
+      doneMain: [], doneMain2: [], doneAfter: [],
       finishMin: null,
       endAt: null,
       rest: calcRestDay(),
-      sento: false
+      sento: false,
+      chStart: null,   /* チャレンジを始めた時刻 */
+      chWin: null      /* 10ぷん以内に クエスト①を終えたか */
+    };
+    save();
+    return true;
+  }
+  /* 古い版で作られた「きょう」は入れ物の形が違う＝作り直す（その日の途中で版が変わった時だけ） */
+  if (!state.today.doneMain2) {
+    state.today = {
+      date: t, phase: calcRestDay() ? 'main' : 'welcome',
+      doneMain: [], doneMain2: [], doneAfter: [],
+      finishMin: null, endAt: null,
+      rest: calcRestDay(), sento: false, chStart: null, chWin: null
     };
     save();
     return true;
@@ -1227,12 +1357,19 @@ function fmtHM(min){
 
 /* ---------- 画面切替 ---------- */
 function showScreen(id){
-  var ids = ['scrMain','scrVideo','scrAfter','scrStamp','scrNight'], i;
+  var ids = ['scrWelcome','scrMain','scrMain2','scrVideo','scrAfter','scrStamp','scrNight'], i;
   if (id !== 'scrVideo') setBigVid(false);
+  /* 下にしめきりバーが出る画面は、札が隠れないよう余白を足す */
+  var withBar = { scrMain: 1, scrMain2: 1, scrAfter: 1 };
+  var barOn = withBar[id] && !(id === 'scrMain' && state.today.rest);
   for (i = 0; i < ids.length; i++) {
-    if (ids[i] === id) $(ids[i]).className = 'screen on';
+    if (ids[i] === id) $(ids[i]).className = 'screen on' + (barOn ? ' hasBar' : '');
     else $(ids[i]).className = 'screen';
   }
+  /* 使わないバーは隠す */
+  $('limit1').style.display = (id === 'scrMain' && barOn) ? 'block' : 'none';
+  $('limit2').style.display = (id === 'scrMain2') ? 'block' : 'none';
+  $('limit3').style.display = (id === 'scrAfter') ? 'block' : 'none';
 }
 function hideOverlays(){
   $('ovCeleb').className = 'ov';
@@ -1276,33 +1413,24 @@ function askConfirm(msg, yesLabel, noLabel, cb){
 
 /* ---------- タスクカード描画 ---------- */
 function buildCards(containerId, tasks, doneArr, kind){
-  var box = $(containerId), i, card, em, tx, stamp, sub, isBath, asSento, isBed, bedLate;
+  var box = $(containerId), i, card, em, tx, stamp, sub, isBath, asSento;
   while (box.firstChild) box.removeChild(box.firstChild);
   for (i = 0; i < tasks.length; i++) {
     isBath = !!tasks[i].bath;
-    isBed = !!tasks[i].bed;
     /* せんとうを選んで済ませた日は、おふろの札を♨️せんとうの見た目にする */
     asSento = isBath && doneArr[i] && state.today && state.today.sento;
-    /* ねる時間に間に合わなかった日は、🌙の札を灰色＋✕にする */
-    bedLate = isBed && state.today && state.today.bedOk === false;
     card = document.createElement('div');
-    card.className = 'card' + (doneArr[i] ? ' done' : '') + (bedLate ? ' late' : '');
+    card.className = 'card' + (doneArr[i] ? ' done' : '');
     em = document.createElement('div'); em.className = 'c-emoji';
     em.textContent = asSento ? '♨️' : tasks[i].e;
     tx = document.createElement('div'); tx.className = 'c-text';
     tx.textContent = asSento ? 'せんとうに いく' : tasks[i].t;
     stamp = document.createElement('div'); stamp.className = 'c-stamp';
-    stamp.textContent = bedLate ? '✕' : '💮';
+    stamp.textContent = '💮';
     card.appendChild(em); card.appendChild(tx);
     if (isBath && !doneArr[i]) {
       sub = document.createElement('div'); sub.className = 'c-sub';
       sub.textContent = '♨️せんとうなら ＋' + (state.settings.sentoBonusMin || 5) + 'ふん';
-      card.appendChild(sub);
-    }
-    if (isBed && !doneArr[i]) {
-      sub = document.createElement('div'); sub.className = 'c-sub';
-      sub.id = 'bedSub';
-      sub.textContent = bedSubText();
       card.appendChild(sub);
     }
     if (tasks[i].sub && !doneArr[i]) {
@@ -1324,15 +1452,19 @@ function renderProgress(elId, tasks, doneArr){
   $(elId).textContent = 'できた ' + n + '／' + tasks.length + '  ' + s;
   return n;
 }
+function tasksOf(kind){
+  if (kind === 'main') return mainTaskList();
+  if (kind === 'main2') return main2TaskList();
+  return state.settings.afterTasks;
+}
+function doneOf(kind){
+  if (kind === 'main') return state.today.doneMain;
+  if (kind === 'main2') return state.today.doneMain2;
+  return state.today.doneAfter;
+}
 function onTaskTap(kind, idx, el){
-  var tasks = kind === 'main' ? mainTaskList() : state.settings.afterTasks;
-  var done = kind === 'main' ? state.today.doneMain : state.today.doneAfter;
+  var tasks = tasksOf(kind), done = doneOf(kind);
   var isBath = !!tasks[idx].bath;
-  if (tasks[idx].bed) {
-    /* 🌙の札は指で押せない＝時計が判定する。押されたら意味だけ伝える */
-    floatText(el, bedTimeOver() ? 'もう ねる じかん！' : 'それまでに ねようね');
-    return;
-  }
   if (done[idx]) {
     askConfirm('「' + tasks[idx].t + '」を とりけす？', 'とりけす', 'やめる', function(yes){
       if (yes) {
@@ -1373,9 +1505,14 @@ function finishTask(kind, idx, el, tasks, done){
     if (countDone(done, tasks.length) === tasks.length) {
       setTimeout(completeMain, 650);
     }
+  } else if (kind === 'main2') {
+    renderProgress('hdProg2', tasks, done);
+    if (countDone(done, tasks.length) === tasks.length) {
+      setTimeout(completeMain2, 650);
+    }
   } else {
     renderProgress('hdProgAfter', tasks, done);
-    if (nonBedAllDone(tasks, done)) {
+    if (countDone(done, tasks.length) === tasks.length) {
       setTimeout(completeAfter, 650);
     }
   }
@@ -1385,18 +1522,52 @@ function countDone(arr, n){
   for (i = 0; i < n; i++) if (arr[i]) c++;
   return c;
 }
-/* 🌙以外の札が全部できたか（🌙は指でなく時計が判定するため、数えから外す） */
-function nonBedAllDone(tasks, done){
-  var i;
-  for (i = 0; i < tasks.length; i++) {
-    if (!tasks[i].bed && !done[i]) return false;
-  }
-  return true;
-}
+
 
 /* ---------- フェーズ進行 ---------- */
+function startChallenge(){
+  state.today.chStart = Date.now();
+  state.today.phase = 'main';
+  save();
+  render();
+}
 function completeMain(){
   if (state.today.phase !== 'main') return;
+  /* 10ぷんチャレンジの結果を残す（できなくても とがめない＝記録だけ） */
+  if (!state.today.rest && state.today.chStart) {
+    state.today.chWin = (ch1RemainSec() >= 0);
+  }
+  if (hasQuest2()) {
+    state.today.phase = 'main2';
+    /* クエスト②のバーは、始めた時点を満タンにする */
+    var left = untilClockSec(quest2ByMin());
+    state.today.q2Total = (left > 60) ? left : 60;
+    save();
+    sndSmallFanfare();
+    /* 先に画面を描き替えてから お祝いを出す。
+       逆にすると render() の中の hideOverlays() で消えてしまう（2026-08-27実測）。 */
+    render();
+    if (state.today.chWin) {
+      showCeleb({
+        emoji: '\u23F0', title: state.settings.challengeMin + 'ぷん いない！',
+        lines: [
+          { text: 'クエスト\u2460 クリア！', bold: true },
+          { text: 'つぎは クエスト\u2461 だよ' }
+        ],
+        btn: 'クエスト\u2461へ \u25B6',
+        onBtn: function(){ hideCeleb(); }
+      });
+      confetti();
+    }
+    return;
+  }
+  finishAllMain();
+}
+function completeMain2(){
+  if (state.today.phase !== 'main2') return;
+  finishAllMain();
+}
+function finishAllMain(){
   var d = new Date();
   var fm = d.getHours() * 60 + d.getMinutes();
   state.today.finishMin = fm;
@@ -1467,21 +1638,15 @@ function celeb1Contents(){
 }
 function completeAfter(){
   if (state.today.phase !== 'after') return;
-  var tasks = state.settings.afterTasks, i, bi = -1;
-  for (i = 0; i < tasks.length; i++) if (tasks[i].bed) bi = i;
-  if (bi >= 0) {
-    if (bedTimeOver()) {
-      /* ねる時間を過ぎた＝ピタゴラタイムとスタンプは無しで、そのままおやすみへ */
-      state.today.bedOk = false;
-      state.today.phase = 'night';
-      save();
-      render();
-      return;
-    }
-    /* 間に合った＝🌙の札を自動で💮にする */
-    state.today.bedOk = true;
-    state.today.doneAfter[bi] = true;
+  if (bedTimeOver()) {
+    /* ねる時間を過ぎた＝ピタゴラタイムとスタンプは無しで、そのままおやすみへ */
+    state.today.bedOk = false;
+    state.today.phase = 'night';
+    save();
+    render();
+    return;
   }
+  state.today.bedOk = true;
   state.today.phase = 'celeb2';
   save();
   render();
@@ -1689,11 +1854,7 @@ function hideCeleb(){ $('ovCeleb').className = 'ov'; celebBtnAction = null; }
 function tick(){
   if (ensureToday()) { render(); return; }
   var ph = state.today.phase;
-  if (ph === 'after') {
-    /* 🌙の札の「あと ○ふん」を時計に合わせて更新する */
-    var bs = $('bedSub');
-    if (bs && bs.textContent !== bedSubText()) bs.textContent = bedSubText();
-  }
+  if (ph === 'main' || ph === 'main2' || ph === 'after') updateLimitBars();
   if ((ph === 'video1' || ph === 'video2') && state.today.endAt) {
     var c = videoConf();
     var remain = state.today.endAt - Date.now();
@@ -1722,10 +1883,32 @@ function render(){
   $('hdDate').textContent = dateLabel() + (state.today.rest ? '　🌞おやすみのひ' : '');
   hideOverlays();
   var ph = state.today.phase;
-  if (ph === 'main' || ph === 'celeb1') {
+  if (ph === 'welcome') {
+    showScreen('scrWelcome');
+    $('hdDateW').textContent = dateLabel();
+    $('welcomeMsg').textContent = (state.settings.challengeMin || 10) + 'ぷんで カード' +
+      mainTaskList().length + 'まい クリアできるかな？';
+  } else if (ph === 'main') {
     showScreen('scrMain');
+    /* 休日は1枚の画面なので、番号を付けない */
+    $('hdTitle1').textContent = hasQuest2() ? 'クエスト①' : 'きょうの クエスト';
     buildCards('mainCards', mainTaskList(), state.today.doneMain, 'main');
     renderProgress('hdProg', mainTaskList(), state.today.doneMain);
+    updateLimitBars();
+  } else if (ph === 'main2' || ph === 'celeb1') {
+    /* 休日は②が無いので、はなまるは①の画面の上に出す */
+    if (hasQuest2()) {
+      showScreen('scrMain2');
+      $('hdDate2').textContent = dateLabel();
+      buildCards('main2Cards', main2TaskList(), state.today.doneMain2, 'main2');
+      renderProgress('hdProg2', main2TaskList(), state.today.doneMain2);
+    } else {
+      showScreen('scrMain');
+      $('hdTitle1').textContent = 'きょうの クエスト';
+      buildCards('mainCards', mainTaskList(), state.today.doneMain, 'main');
+      renderProgress('hdProg', mainTaskList(), state.today.doneMain);
+    }
+    updateLimitBars();
     if (ph === 'celeb1') {
       showCeleb(celeb1Contents());
       confetti();
@@ -1738,6 +1921,13 @@ function render(){
     showScreen('scrAfter');
     buildCards('afterCards', state.settings.afterTasks, state.today.doneAfter, 'after');
     renderProgress('hdProgAfter', state.settings.afterTasks, state.today.doneAfter);
+    /* ねるまえのバーは、この画面に入った時点を満タンにする */
+    if (!state.today.afterTotal) {
+      var left = untilClockSec(bedCutoffMin());
+      state.today.afterTotal = (left > 60) ? left : 60;
+      save();
+    }
+    updateLimitBars();
     if (ph === 'celeb2') {
       showCeleb(celeb2Contents());
       sndSmallFanfare();
@@ -1824,7 +2014,12 @@ var PRAISE_HINTS = [
 ];
 function openSettings(){
   $('praiseHint').textContent = dayPick(PRAISE_HINTS);
-  $('dayInfo').textContent = (state.today.rest ?
+  var chTxt = '';
+  if (!state.today.rest && state.today.chWin !== null && state.today.chWin !== undefined) {
+    chTxt = ' ' + (state.settings.challengeMin || 10) + '分チャレンジ＝' +
+      (state.today.chWin ? '成功' : '時間内は未達（記録のみ・とがめない設計）') + '。';
+  }
+  $('dayInfo').textContent = chTxt + (state.today.rest ?
       '休日パターン（土日・祝日・園の長期休み）で表示中。' :
       '平日パターンで表示中。') +
     (state.today.sento ? ' きょうは せんとうボーナス＋' + (state.settings.sentoBonusMin || 5) + '分。' : '') +
@@ -1875,6 +2070,7 @@ bindTap($('btnCeleb'), function(){
 });
 bindTap($('cfYes'), function(){ $('ovConfirm').className = 'ov'; if (cfCb) cfCb(true); cfCb = null; });
 bindTap($('cfNo'), function(){ $('ovConfirm').className = 'ov'; if (cfCb) cfCb(false); cfCb = null; });
+bindTap($('btnChallenge'), startChallenge);
 bindTap($('btnVidStart'), startVideo);
 bindTap($('btnVidEnd'), function(){
   askConfirm('どうがを おしまいに する？', 'おしまいに する', 'まだ みる', function(yes){
