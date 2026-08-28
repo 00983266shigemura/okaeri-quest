@@ -1,10 +1,24 @@
 # -*- coding: utf-8 -*-
-"""index.html に埋め込んだ動画一覧(VIDEO_LISTS)を、各チャンネルのRSSから最新化する。
+"""ごほうび動画の一覧を、しげの再生リストの「いまの中身」に合わせる。
 
-- 対象チャンネルは index.html の現在の VIDEO_LISTS から自動で読み取る
-  （list の "UU..." を "UC..." に戻したものがチャンネルID）。
-- 失敗時は index.html を一切書き換えずに終了する（壊れた状態で公開しないため）。
-- 変更が無ければ何も書かない（無駄なコミットを作らないため）。
+しげの操作は、YouTubeの再生リストへ **保存する / 外す** だけ。
+アプリの一覧は毎朝それに合わせて作り直される（CCの改修もpushも要らない）。
+
+設計の要点（2026-08-28・査読の指摘を受けて「貯める方式」を捨てた）:
+  - **貯めない。** 毎回、再生リストのいまの中身をそのまま写す。
+    貯める方式は、しげが再生リストから **外した動画を落とせない**（外した動画は
+    YouTube上では生きているので、埋め込み可否の検査を通ってしまう）。
+    それでは「飽きたら入れ替える」ができず、この道具の目的を果たさない。
+  - 写すだけなので、足したぶんも外したぶんも翌朝そのまま効く。
+  - RSSが返すのは再生リストの先頭15本まで。**しげには「並び替え＝追加日の新しい順」に
+    しておいてもらう**（そうすれば足した動画が必ず先頭に入る）。
+  - 動画側が埋め込みを禁止・非公開・削除したものは、YouTube公式の照会口(oEmbed)で落とす
+    （どの端末でも再生できないため。2026-08-28に1本が実在）。
+
+安全側の作り:
+  - 取得に失敗したら index.html を一切書き換えずに終了する
+  - 判定できなかった動画は残す（一覧を空にしないことを優先）
+  - 変更が無ければ何も書かない
 
 終了コード: 0=正常(変更あり/なしを問わず) / 1=失敗(書き換えなし)
 """
@@ -19,10 +33,11 @@ import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 INDEX = os.path.join(os.path.dirname(HERE), 'index.html')
-FEED = 'https://www.youtube.com/feeds/videos.xml?channel_id=%s'
+FEED = 'https://www.youtube.com/feeds/videos.xml?playlist_id=%s'
 OEMBED = 'https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=%s&format=json'
-MAX_ITEMS = 15
+UA = 'okaeri-quest-updater'
 LINE_RE = re.compile(r'^var VIDEO_LISTS = (.*);$', re.M)
+MAX_ITEMS = 15
 
 
 def fail(msg):
@@ -31,7 +46,7 @@ def fail(msg):
 
 
 def fetch(url):
-    req = urllib.request.Request(url, headers={'User-Agent': 'okaeri-quest-updater'})
+    req = urllib.request.Request(url, headers={'User-Agent': UA})
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
             if r.status != 200:
@@ -42,13 +57,8 @@ def fetch(url):
 
 
 def embeddable(vid):
-    """動画側で埋め込みが禁止・非公開・削除されていないかを、YouTube公式の照会口(oEmbed)で確かめる。
-
-    401/403/404 = 埋め込み不可・見られない動画として除外する
-    （2026-08-28実測: ぷち一覧の1本が401=どの端末でも再生できないまま一覧に居座っていた）。
-    通信エラー等は判定不能=残す（安全側。一覧を空にしないことを優先）。
-    """
-    req = urllib.request.Request(OEMBED % vid, headers={'User-Agent': 'okaeri-quest-updater'})
+    """動画側が埋め込みを許しているか。401/403/404=不可。判定できない時は残す（安全側）。"""
+    req = urllib.request.Request(OEMBED % vid, headers={'User-Agent': UA})
     try:
         with urllib.request.urlopen(req, timeout=15) as r:
             return r.status == 200
@@ -88,17 +98,20 @@ def main():
     updated = {}
     for key in sorted(lists.keys()):
         playlist = lists[key].get('list', '')
-        if not playlist.startswith('UU'):
+        if not re.match(r'^(UU|PL)[\w-]+$', playlist):
             fail('%s の再生リストIDが想定外です: %s' % (key, playlist))
-        channel = 'UC' + playlist[2:]
-        items = parse_feed(fetch(FEED % channel))
+
+        items = parse_feed(fetch(FEED % playlist))
         if not items:
-            fail('%s (%s) から動画を取得できませんでした' % (key, channel))
+            fail('%s (%s) から動画を取得できませんでした' % (key, playlist))
+
         kept = [it for it in items if embeddable(it['id'])]
         if len(kept) < len(items):
-            sys.stdout.write('%s: 埋め込み不可 %d本を除外\n' % (key, len(items) - len(kept)))
+            sys.stdout.write('%s: 見られない動画 %d本を外しました\n'
+                             % (key, len(items) - len(kept)))
         if not kept:
-            fail('%s (%s) は埋め込み可の動画が0本でした' % (key, channel))
+            fail('%s (%s) は見られる動画が0本でした' % (key, playlist))
+
         updated[key] = {'list': playlist, 'items': kept}
         sys.stdout.write('%s: %d本\n' % (key, len(kept)))
 

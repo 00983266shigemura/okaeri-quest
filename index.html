@@ -556,7 +556,7 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 17;
+var APP_VERSION = 18;
 
 /* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
    上の APP_VERSION と隣り合っていると、版数を上げたときに
@@ -1808,11 +1808,27 @@ function openPick(){
   }
   $('ovPick').className = 'ov on';
 }
+/* その日の開始位置。日付から決めるので、毎日ちがう動画から始まる。
+   2026-08-28まで常に0番から始めており、一覧が変わらない間は毎日まったく同じ動画で
+   始まっていた（＝飽きの直接の原因のひとつ）。乱数ではなく日付から決めるのは、
+   同じ日に開き直しても同じところから始まるようにするため（続きが飛ばない）。
+   枠ごとにずらし方を変えて、両方の枠が同時に同じ位置にならないようにする。 */
+function startIndexForToday(n, kind){
+  var d = new Date();
+  var days = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
+  if (!n || n < 1) return 0;
+  /* 1日に1つずつ進める。こうすると連日で必ず違う位置になり、n日で一覧を一周する。
+     （最初は7つずつ進める案にしたが、本数が7の倍数のとき同じ位置に戻ってしまうことが
+     検証で分かったので1つずつにした＝2026-08-28の論理検証T5/T6） */
+  var off = (kind === 2) ? Math.floor(n / 2) : 0;   /* 2つの枠が同じ位置に来ないようずらす */
+  return ((days + off) % n + n) % n;
+}
 function startVideo(){
   var c = videoConf();
-  state.today.vidCur = 0;
   state.vidSkips = 0;              /* 今日の再生のはじまり＝飛ばした数を0に戻す */
   vidBaked = bakedFor(c.url);
+  state.today.vidCur = startIndexForToday(
+    (vidBaked && vidBaked.items) ? vidBaked.items.length : 0, c.kind);
   state.today.endAt = Date.now() + Math.round(c.minutes * 60000);
   save();
   $('vidTitle').textContent = c.title;
