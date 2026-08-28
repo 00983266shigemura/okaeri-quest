@@ -14,11 +14,13 @@ import os
 import re
 import sys
 import html
+import urllib.error
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 INDEX = os.path.join(os.path.dirname(HERE), 'index.html')
 FEED = 'https://www.youtube.com/feeds/videos.xml?channel_id=%s'
+OEMBED = 'https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=%s&format=json'
 MAX_ITEMS = 15
 LINE_RE = re.compile(r'^var VIDEO_LISTS = (.*);$', re.M)
 
@@ -37,6 +39,25 @@ def fetch(url):
             return r.read().decode('utf-8', 'replace')
     except Exception as e:
         fail('取得できませんでした (%s): %s' % (e, url))
+
+
+def embeddable(vid):
+    """動画側で埋め込みが禁止・非公開・削除されていないかを、YouTube公式の照会口(oEmbed)で確かめる。
+
+    401/403/404 = 埋め込み不可・見られない動画として除外する
+    （2026-08-28実測: ぷち一覧の1本が401=どの端末でも再生できないまま一覧に居座っていた）。
+    通信エラー等は判定不能=残す（安全側。一覧を空にしないことを優先）。
+    """
+    req = urllib.request.Request(OEMBED % vid, headers={'User-Agent': 'okaeri-quest-updater'})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            return r.status == 200
+    except urllib.error.HTTPError as e:
+        if e.code in (401, 403, 404):
+            return False
+        return True
+    except Exception:
+        return True
 
 
 def parse_feed(xml):
@@ -73,8 +94,13 @@ def main():
         items = parse_feed(fetch(FEED % channel))
         if not items:
             fail('%s (%s) から動画を取得できませんでした' % (key, channel))
-        updated[key] = {'list': playlist, 'items': items}
-        sys.stdout.write('%s: %d本\n' % (key, len(items)))
+        kept = [it for it in items if embeddable(it['id'])]
+        if len(kept) < len(items):
+            sys.stdout.write('%s: 埋め込み不可 %d本を除外\n' % (key, len(items) - len(kept)))
+        if not kept:
+            fail('%s (%s) は埋め込み可の動画が0本でした' % (key, channel))
+        updated[key] = {'list': playlist, 'items': kept}
+        sys.stdout.write('%s: %d本\n' % (key, len(kept)))
 
     new_line = 'var VIDEO_LISTS = ' + json.dumps(
         updated, ensure_ascii=False, separators=(",", ":")) + ';'
