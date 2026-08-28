@@ -131,8 +131,19 @@ button { font-family:inherit; }
 
 body.bigvid { background:#000; }
 body.bigvid .screen { padding:0; background:#000; overflow:hidden; }
-body.bigvid #vidStartWrap, body.bigvid #vidNote,
+body.bigvid #vidStartWrap, body.bigvid #vidPickWrap, body.bigvid #vidNote,
 body.bigvid .v-title { display:none; }
+/* チャンネルえらび（どうがタイムの入口）。大きく押しやすい札を縦に並べる。 */
+#vidPickWrap { display:none; }
+.chBtn {
+  display:block; width:100%; max-width:420px; margin:0 auto 12px;
+  padding:18px 16px; border:0; border-radius:16px; cursor:pointer;
+  font-size:21px; font-weight:800; color:#fff; background:#0072B2;
+  box-shadow:0 4px 0 #005a8e; -webkit-appearance:none;
+}
+.chBtn:active { -webkit-transform:translateY(3px) scale(0.98); transform:translateY(3px) scale(0.98); box-shadow:0 1px 0 #005a8e; }
+.chBtn.alt { background:#009E73; box-shadow:0 4px 0 #00795a; }
+.chBtn.alt:active { box-shadow:0 1px 0 #00795a; }
 body.bigvid .v-ring { margin-right:10px; }
 body.bigvid .v-ring svg { width:48px; height:48px; }
 body.bigvid .ringTrack { stroke:#5a5a5a; }
@@ -406,9 +417,15 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
     </div>
     <div class="v-remain" id="vidRemain">--:--</div>
   </div>
+  <div class="v-center" id="vidPickWrap">
+    <p id="vidPickTitle" style="font-size:24px;font-weight:800;margin:0 0 14px">どの チャンネルに する？</p>
+    <div id="vidPickBtns"></div>
+    <p class="note" id="vidPickNote" style="margin-top:12px"></p>
+  </div>
   <div class="v-center" id="vidStartWrap">
     <button class="bigBtn orange" id="btnVidStart">▶ スタート！</button>
     <p class="note" id="vidStartNote" style="margin-top:12px"></p>
+    <button class="miniBtn" id="btnVidBack" style="margin-top:14px">チャンネルを えらびなおす</button>
   </div>
   <div id="vidBox"></div>
   <div id="vidCover">
@@ -556,13 +573,13 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 18;
+var APP_VERSION = 19;
 
 /* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
    上の APP_VERSION と隣り合っていると、版数を上げたときに
    自動更新分と取り込みでぶつかる（2026-08-23に実際に発生）。
    ぶつからないよう、間にこの説明を挟んで離してある。消さないこと。 */
-var VIDEO_LISTS = {"main":{"list":"UUC4107WX_cYsJ80fWjR5Hjw","items":[{"id":"_PJYwXkj8NE","t":"ミヤマクワガタ・ノコギリクワガタの産卵にチャレンジするぜ！"},{"id":"rZZLqEwtT20","t":"生きたカブクワが50種類展示されるヤバい昆虫展はこちら！"},{"id":"NVmitiDUK4M","t":"【衝撃】カブトムシ1匹を腐葉土の中に入れると・・・"},{"id":"fsNrV69ulJk","t":"セミが大量に採れる季節がはじまりました！！！！"},{"id":"QP5cMuTthKc","t":"夏休み限定！世界の昆虫たちが集まる昆虫展がスゴすぎる！"},{"id":"OaP8pPgqMIs","t":"いまのガチャガチャってこんなことになってんの？www"},{"id":"yVQdFIksZlg","t":"昆虫採集ってこういうのでいいんだよ"},{"id":"jar39uoSkNY","t":"新グッズ&夏のイベントのお知らせ！"},{"id":"PRJudDCokkk","t":"カブトムシが200匹放たれる夏休み限定の昆虫展がヤバい！！"},{"id":"rltxGvnfwYU","t":"これが噂のネギトラップ！その威力をご覧あれ！！！"},{"id":"K5pqVbSG55w","t":"河川敷のカブトムシ・クワガタはこうやって探せ！！！！！"},{"id":"bGG7GnP4oGo","t":"【大量】この季節の昆虫採集は河川敷がアツい！！！！！！"},{"id":"ODdGk4kc7mY","t":"八王子の新しい昆虫ショップが最高すぎる！！！！"},{"id":"HaIbB9JTJaQ","t":"ずっと会いたかった虫がそこにいたのです"},{"id":"M0o5d9hP6ek","t":"大ピンチです。ご協力よろしくお願いいたします。"}]},"petit":{"list":"UU6cXcs9jEmAx9qPx6ubWWkg","items":[{"id":"Dv42PzK8Aps","t":"「もりのおく」ピタゴラスイッチカバー つながりうた Eテレ オリジナルアニメーション"},{"id":"4xZ0B1g3LUI","t":"「たまご会議」 おとなのピタゴラスイッチ  Eテレ オリジナルアニメーション"},{"id":"LETUJ2ArTcg","t":"「こたつたこ」なぞなぞ編 おとなのピタゴラスイッチ 回文の歌 Eテレ オリジナルアニメーション"},{"id":"meKen0btf-c","t":"ビーだまビーすけの大冒険スペシャル全部入り+追加場面あり音質調整版 E-テレ NHK ピタゴラスイッチカバー"},{"id":"H6pPoYO10hg","t":"るかろか ピタゴラスイッチ Eテレ NHK けいのチァンネル"},{"id":"806eNZXFhT0","t":"効率第一ダンドリオン お掃除編 ピタゴラスイッチ好きなら必見！Eテレ新番組テキシコーより和牛のお二人によるアニメ Eテレ NHK"},{"id":"N0r5WlkdSh4","t":"パタトクカシー おとなのピタゴラスイッチ Eテレ オリジナルアニメーション"},{"id":"lz5K5aSnZXw","t":"「こたつたこ」その2 おとなのピタゴラスイッチ 回文の歌 Eテレ オリジナルアニメーション"},{"id":"lC2hxHBEqXI","t":"しめじソート おとなのピタゴラスイッチ Eテレ マージソート"},{"id":"ULrh9saGwAg","t":"ぽんほんぼんの歌 おとなのピタゴラスイッチ Eテレ オリジナルアニメーション"},{"id":"SwCbDgiCpTQ","t":"ビーだまビーすけの大冒険ファイナル ビーすけと黒玉王子の大脱出 おとなのピタゴラスイッチ Eテレ NHK"},{"id":"cZzjXk25W9E","t":"びーだまびーすけの大冒険 Ep3 プロローグ おとなのピタゴラスイッチ MarbleB suke Great Adventure Episode3 Prologue Eテレ NHK"},{"id":"dqaAC0EpwYU","t":"アルゴリズム体操 ピタゴラスイッチ あっちむいて二人でまえならえ"},{"id":"P_tYwzXUPvc","t":"ビーだまビーすけの大冒険番外編 黒玉軍のピタゴラ装置 おとなのピタゴラスイッチ Eテレ NHK"},{"id":"otobyfuehmc","t":"「こたつたこ」おとなのピタゴラスイッチ Eテレ 回文の歌 オリジナルアニメーション"}]}};
+var VIDEO_LISTS = {"main":{"sources":[{"id":"UUC4107WX_cYsJ80fWjR5Hjw","name":"むしおかだいき","items":[{"id":"_PJYwXkj8NE","t":"ミヤマクワガタ・ノコギリクワガタの産卵にチャレンジするぜ！"},{"id":"rZZLqEwtT20","t":"生きたカブクワが50種類展示されるヤバい昆虫展はこちら！"},{"id":"NVmitiDUK4M","t":"【衝撃】カブトムシ1匹を腐葉土の中に入れると・・・"},{"id":"fsNrV69ulJk","t":"セミが大量に採れる季節がはじまりました！！！！"},{"id":"QP5cMuTthKc","t":"夏休み限定！世界の昆虫たちが集まる昆虫展がスゴすぎる！"},{"id":"OaP8pPgqMIs","t":"いまのガチャガチャってこんなことになってんの？www"},{"id":"yVQdFIksZlg","t":"昆虫採集ってこういうのでいいんだよ"},{"id":"PRJudDCokkk","t":"カブトムシが200匹放たれる夏休み限定の昆虫展がヤバい！！"},{"id":"rltxGvnfwYU","t":"これが噂のネギトラップ！その威力をご覧あれ！！！"},{"id":"K5pqVbSG55w","t":"河川敷のカブトムシ・クワガタはこうやって探せ！！！！！"},{"id":"bGG7GnP4oGo","t":"【大量】この季節の昆虫採集は河川敷がアツい！！！！！！"},{"id":"ODdGk4kc7mY","t":"八王子の新しい昆虫ショップが最高すぎる！！！！"},{"id":"HaIbB9JTJaQ","t":"ずっと会いたかった虫がそこにいたのです"},{"id":"M0o5d9hP6ek","t":"大ピンチです。ご協力よろしくお願いいたします。"},{"id":"AgxVlpQ1Nmw","t":"危険すぎるクワガタを飼育します"}]},{"id":"UUO_zIRIcbIeV9jC2CJ2OAMQ","name":"もりこんにゃく","items":[{"id":"1_NWyIPmE9Y","t":"選ばれた特別なザリガニを飼育する"},{"id":"TS6OCOd_-fY","t":"川で見つけた穴に太いウナギが隠れてた"},{"id":"5EHUlppeX6U","t":"本気でセミ採ったらこうなります"},{"id":"cDcN5zb4jvY","t":"オオクワガタ捕まえた"},{"id":"P-rCbSgSstM","t":"ついに..."},{"id":"lFmscQh4Ybo","t":"クワガタが大量に落ちてる村がヤバい"},{"id":"oBe_4TnqsZ0","t":"住宅地の川でバケモノ捕まえた"},{"id":"p3OmWWrdMv0","t":"山奥の川に幻の生き物が潜んでいる"},{"id":"BeMQGdhgVoE","t":"田んぼ作って巨大ドジョウ飼育したらスゴいことに！"},{"id":"fF08Jyv9VyI","t":"用水路ですごい生き物を捕まえた"},{"id":"vcJmzlAHWEw","t":"飼育してるダンゴムシの生態がおもしろすぎる"},{"id":"oNrn951lr58","t":"巨大なクワガタを捕獲する罠がヤバすぎる"},{"id":"bz8bBMhXkQU","t":"巨大なクワガタを採りにきた"},{"id":"7D_cV87IUzM","t":"こんな本を出版します！"},{"id":"HrBuluS9p9o","t":"捕まえたトカゲの赤ちゃんをまさかの場所で飼育してみた"}]}]},"petit":{"sources":[{"id":"UUg2ISGsrOjBaf4SbxgrGgtw","name":"たっつんTV","items":[{"id":"oIIqPMVhWkQ","t":"【チャンネル登録者20,000人突破SP企画】視聴者さんと一緒にピタゴラ作ってみた！（小泉様宅）"},{"id":"30Ohykss2iE","t":"【SP企画】視聴者さんと一緒にピタゴラを作る！（村瀬様宅）たっつんTV20,000人企画"},{"id":"VkCvs8Wh7LA","t":"【総集編】2025年に作ったピタゴラ24作品＋αをギュッと1つに！"},{"id":"EtT0HODBFkY","t":"【総集編】ピタゴラじゃんけん装置5つと黒玉軍の悪だくみをギュッと1動画にまとめました！"},{"id":"35URbkHEDns","t":"【新企画】スーと黒玉軍の「今日のどうなる？」"},{"id":"opG3JgzFl2s","t":"【自作】ピタゴラじゃんけん装置vol.5"},{"id":"wHRGJ4FHKAQ","t":"【自作】ピタゴラじゃんけん装置vol.4"},{"id":"DgNVmMFxovA","t":"黒玉軍の悪だくみ episode.1"},{"id":"kAwHGIPxn8w","t":"【SP総集編】ピタゴラ装置の動画をギュッと30作品以上！〜チャンネル登録者数20,000人突破記念スペシャル"},{"id":"Da2VvIWT_74","t":"【SP企画】チャンネル登録者数20,000人感謝のピタゴラ装置とSP企画のご案内"},{"id":"MFILy8jQhd0","t":"リアルビー玉ビーすけの大冒険 『トーベヤンソンの森〜メッツァビレッジ』の巻"},{"id":"gZ9KcE8TqVU","t":"【初心者必見】ピタゴラ装置の作り方ポイント6選〜エレベーター装置の作り方も解説してみた！〜"},{"id":"BvXkcQ8WsEw","t":"リアル・ビー玉ビーすけの大冒険『トトロの森1号地』の巻"},{"id":"MjvyWCYSpok","t":"【SP総集編3】ピタゴラ動画たっぷり1時間越え！活動8周年記念スペシャル！vol.2"},{"id":"JClAMu2ZAQ8","t":"【SP総集編3】ピタゴラ動画たっぷり1時間越え！活動8周年記念スペシャル！vol.1"}]},{"id":"UU6cXcs9jEmAx9qPx6ubWWkg","name":"けいのちゃんねる","items":[{"id":"Dv42PzK8Aps","t":"「もりのおく」ピタゴラスイッチカバー つながりうた Eテレ オリジナルアニメーション"},{"id":"LETUJ2ArTcg","t":"「こたつたこ」なぞなぞ編 おとなのピタゴラスイッチ 回文の歌 Eテレ オリジナルアニメーション"},{"id":"meKen0btf-c","t":"ビーだまビーすけの大冒険スペシャル全部入り+追加場面あり音質調整版 E-テレ NHK ピタゴラスイッチカバー"},{"id":"806eNZXFhT0","t":"効率第一ダンドリオン お掃除編 ピタゴラスイッチ好きなら必見！Eテレ新番組テキシコーより和牛のお二人によるアニメ Eテレ NHK"},{"id":"N0r5WlkdSh4","t":"パタトクカシー おとなのピタゴラスイッチ Eテレ オリジナルアニメーション"},{"id":"lz5K5aSnZXw","t":"「こたつたこ」その2 おとなのピタゴラスイッチ 回文の歌 Eテレ オリジナルアニメーション"},{"id":"lC2hxHBEqXI","t":"しめじソート おとなのピタゴラスイッチ Eテレ マージソート"},{"id":"ULrh9saGwAg","t":"ぽんほんぼんの歌 おとなのピタゴラスイッチ Eテレ オリジナルアニメーション"},{"id":"SwCbDgiCpTQ","t":"ビーだまビーすけの大冒険ファイナル ビーすけと黒玉王子の大脱出 おとなのピタゴラスイッチ Eテレ NHK"},{"id":"cZzjXk25W9E","t":"びーだまびーすけの大冒険 Ep3 プロローグ おとなのピタゴラスイッチ MarbleB suke Great Adventure Episode3 Prologue Eテレ NHK"},{"id":"dqaAC0EpwYU","t":"アルゴリズム体操 ピタゴラスイッチ あっちむいて二人でまえならえ"},{"id":"P_tYwzXUPvc","t":"ビーだまビーすけの大冒険番外編 黒玉軍のピタゴラ装置 おとなのピタゴラスイッチ Eテレ NHK"},{"id":"otobyfuehmc","t":"「こたつたこ」おとなのピタゴラスイッチ Eテレ 回文の歌 オリジナルアニメーション"},{"id":"EvlPvlLsNTg","t":"ぴきひきびきのうた おとなのピタゴラスイッチ Eテレ オリジナルアニメーション"}]}]}};
 
 /* ここから下の1行（JP_HOLIDAYS）も、毎朝GitHubの自動更新が書き換える（日本の祝日の一覧）。
    休日判定（下の calcRestDay）に使う。VIDEO_LISTSと同じ仕組みで、
@@ -618,8 +635,8 @@ var DEFAULT_SETTINGS = {
   videoEndBy: '20:15',
   rewardMin: 30,
   petitMin: 10,
-  videoMain: 'https://www.youtube.com/playlist?list=UUC4107WX_cYsJ80fWjR5Hjw',
-  videoPetit: 'https://www.youtube.com/playlist?list=UU6cXcs9jEmAx9qPx6ubWWkg',
+  /* どの枠でどのチャンネルを出すかは、下の VIDEO_SOURCES で決める（PC側で管理）。
+     子どもは「どのチャンネルにする？」の画面で、その枠のチャンネルから選ぶ。 */
   mode: 'embed',
   stampGoal: 10,
   rewards: ['カブトムシロボ']
@@ -627,6 +644,49 @@ var DEFAULT_SETTINGS = {
 
 var PETIT_SEARCH_URL = 'https://m.youtube.com/results?search_query=%E3%83%94%E3%82%BF%E3%82%B4%E3%83%A9%E3%82%B9%E3%82%A4%E3%83%83%E3%83%81';
 var MAIN_LINK_URL = 'https://m.youtube.com/';
+
+/* ---------- どの枠にどのチャンネルを出すか（しげがPC側で決める） ----------
+   name は子どもが選ぶ画面に出る名前。id はチャンネルの投稿一覧（UU…）。
+   チャンネルを足す・やめるときは、この表を書き替えるだけでよい
+   （毎朝の自動更新が、ここに書かれたチャンネルの新着を取りにいく）。
+   2026-08-28 しげ指定の4チャンネル。IDは@のURLから実測で解決した。 */
+var VIDEO_SOURCES = {
+  main: [
+    { id: 'UUC4107WX_cYsJ80fWjR5Hjw', name: 'むしおかだいき' },
+    { id: 'UUO_zIRIcbIeV9jC2CJ2OAMQ', name: 'もりこんにゃく' }
+  ],
+  petit: [
+    { id: 'UUg2ISGsrOjBaf4SbxgrGgtw', name: 'たっつんTV' },
+    { id: 'UU6cXcs9jEmAx9qPx6ubWWkg', name: 'けいのちゃんねる' }
+  ]
+};
+function frameKey(kind){ return (kind === 2) ? 'petit' : 'main'; }
+function sourcesFor(kind){ return VIDEO_SOURCES[frameKey(kind)] || []; }
+/* いま選ばれているチャンネル（枠ごとに、その日のあいだ覚えておく）。
+   未選択なら -1（＝「どのチャンネルにする？」の画面を出す）。 */
+function chosenSrc(kind){
+  var k = (kind === 2) ? 'srcPetit' : 'srcMain';
+  var v = state.today ? state.today[k] : -1;
+  if (typeof v !== 'number' || v < 0 || v >= sourcesFor(kind).length) return -1;
+  return v;
+}
+function setChosenSrc(kind, i){
+  state.today[(kind === 2) ? 'srcPetit' : 'srcMain'] = i;
+  save();
+}
+/* 選ばれているチャンネルの動画一覧（自動更新が焼き込んだもの）。 */
+function bakedForKind(kind){
+  var i = chosenSrc(kind);
+  if (i < 0) return null;
+  var src = sourcesFor(kind)[i];
+  var lst = VIDEO_LISTS[frameKey(kind)];
+  if (!lst || !lst.sources) return null;
+  var j;
+  for (j = 0; j < lst.sources.length; j++) {
+    if (lst.sources[j].id === src.id) return lst.sources[j];
+  }
+  return null;
+}
 
 var state = null;
 var vidBaked = null;
@@ -1175,14 +1235,6 @@ function gotoIndex(i){
   showLoading(i);
   location.reload();
 }
-function bakedFor(url){
-  var p = parseYT(url), k;
-  if (!p || p.kind !== 'list') return null;
-  for (k in VIDEO_LISTS) {
-    if (VIDEO_LISTS[k].list === p.id) return VIDEO_LISTS[k];
-  }
-  return null;
-}
 var EMBED_EXTRA = '&enablejsapi=1&iv_load_policy=3';
 /* 呼び方は1通りに固定した（2026-08-28の実機実測による）。
    専用の実験ページ video_test.html で、同じ動画に対し5条件
@@ -1191,7 +1243,7 @@ var EMBED_EXTRA = '&enablejsapi=1&iv_load_policy=3';
    したがって「呼び方を順ぐりに変える」仕掛けは効果がないので撤去する（要素を減らす）。
    再生リスト付きの形（旧・呼び方0）は、いちばん重いうえ実機で0勝4敗だったため使わない。
    まえ/つぎ/えらぶ は自前のボタンで動くので、再生リスト形式は元から不要。 */
-function playSrc(p){
+function playSrc(){
   var it;
   if (vidBaked && vidBaked.items.length) {
     it = vidBaked.items[curIndex()];
@@ -1202,7 +1254,7 @@ function playSrc(p){
              '?playsinline=1&rel=0&controls=1' + EMBED_EXTRA;
     }
   }
-  return embedSrc(p);
+  return '';
 }
 
 /* ---------- 再生の見切りと自動送り ----------
@@ -1229,10 +1281,6 @@ function giveUpAndSkip(){
   if (state.vidSkips > maxSkips()) return;   /* 上限＝これ以上は自動で進まない */
   if (n < 1) return;
   gotoIndex((curIndex() + 1) % n);           /* この中で保存と読み直しをする */
-}
-function embedSrc(p){
-  if (p.kind === 'list') return 'https://www.youtube.com/embed/videoseries?list=' + p.id + '&playsinline=1&rel=0' + EMBED_EXTRA;
-  return 'https://www.youtube.com/embed/' + p.id + '?playsinline=1&rel=0' + EMBED_EXTRA;
 }
 
 /* ---------- プレーヤー遠隔操作（iframe内のYouTubeへ postMessage で命令を送る） ---------- */
@@ -1687,13 +1735,13 @@ function videoConf(){
     return {
       kind: 1, title: 'どうがタイム',
       minutes: rewardMinNow(),
-      url: state.settings.videoMain, linkFallback: MAIN_LINK_URL
+      linkFallback: MAIN_LINK_URL
     };
   }
   return {
-    kind: 2, title: 'ピタゴラタイム',
+    kind: 2, title: 'ねるまえタイム',
     minutes: state.settings.petitMin,
-    url: state.settings.videoPetit, linkFallback: PETIT_SEARCH_URL
+    linkFallback: PETIT_SEARCH_URL
   };
 }
 function renderVideo(){
@@ -1711,25 +1759,74 @@ function renderVideo(){
       return;
     }
     setBigVid(false);
-    $('vidStartWrap').style.display = 'block';
-    $('vidStartNote').textContent = c.minutes + 'ふん みられるよ。じゅんびが できたら スタート！';
     $('vidRemain').textContent = fmtRemain(c.minutes * 60000);
     setRing(c.minutes * 60000, c.minutes * 60000);
+    if (chosenSrc(c.kind) < 0) {
+      /* まだチャンネルを選んでいない＝「どの チャンネルに する？」を出す */
+      $('vidStartWrap').style.display = 'none';
+      renderChannelPick(c);
+    } else {
+      $('vidPickWrap').style.display = 'none';
+      $('vidStartWrap').style.display = 'block';
+      var cs = sourcesFor(c.kind)[chosenSrc(c.kind)];
+      $('vidStartNote').textContent =
+        (cs ? cs.name + '　' : '') + c.minutes + 'ふん みられるよ。じゅんびが できたら スタート！';
+    }
   } else {
+    $('vidPickWrap').style.display = 'none';
     $('vidStartWrap').style.display = 'none';
     mountPlayer(c);
   }
 }
+/* 「どの チャンネルに する？」の画面を作る。
+   その枠に登録されているチャンネルだけを、大きな札で縦に並べる。 */
+function renderChannelPick(c){
+  var wrap = $('vidPickWrap'), box = $('vidPickBtns');
+  var list = sourcesFor(c.kind), i, n = 0;
+  while (box.firstChild) box.removeChild(box.firstChild);
+  for (i = 0; i < list.length; i++) {
+    /* 動画が1本も無いチャンネルは押しても何も出ないので出さない */
+    if (!bakedItemsOf(c.kind, list[i].id).length) continue;
+    box.appendChild(makeChannelBtn(c, i, list[i], n));
+    n++;
+  }
+  if (!n) {
+    /* どのチャンネルにも動画が無い＝自動更新が届いていない。行き止まりにしない */
+    $('vidPickNote').textContent = 'いま どうがが よういできていません。おうちのひとを よんでね。';
+    wrap.style.display = 'block';
+    return;
+  }
+  $('vidPickNote').textContent = c.minutes + 'ふん みられるよ。';
+  wrap.style.display = 'block';
+}
+function bakedItemsOf(kind, id){
+  var lst = VIDEO_LISTS[frameKey(kind)], j;
+  if (!lst || !lst.sources) return [];
+  for (j = 0; j < lst.sources.length; j++) {
+    if (lst.sources[j].id === id) return lst.sources[j].items || [];
+  }
+  return [];
+}
+function makeChannelBtn(c, idx, src, order){
+  var b = document.createElement('button');
+  b.className = 'chBtn' + (order % 2 ? ' alt' : '');
+  b.textContent = src.name;
+  bindTap(b, function(){
+    setChosenSrc(c.kind, idx);
+    render();
+  });
+  return b;
+}
 function mountPlayer(c){
-  var box = $('vidBox'), p = parseYT(c.url);
-  vidBaked = bakedFor(c.url);
+  var box = $('vidBox');
+  vidBaked = bakedForKind(c.kind);
   $('vidCtrl').style.display = (vidBaked && vidBaked.items.length) ? '' : 'none';
   while (box.firstChild) box.removeChild(box.firstChild);
   ytLive = false; ytPlayed = false; ytDur = 0; ytCur = 0; ytState = -2; seekFrac = null;
   frameLoaded = false; frameLoadMs = 0;
   mountAt = Date.now();
   updateSeekUI();
-  if (state.settings.mode === 'embed' && p) {
+  if (state.settings.mode === 'embed' && vidBaked && vidBaked.items.length) {
     /* 順序が大事＝①先に大画面へ切り替える ②16:9の実寸を決める ③その寸法を枠に入れる
        ④最後に読み込みを始める。寸法を決める前に枠を差し込むと、YouTubeが既定の小さい枠
        （300×150）で立ち上がり、そのときの配置のまま操作ボタンが描かれてしまう
@@ -1752,7 +1849,7 @@ function mountPlayer(c){
     f.onload = function(){
       if (!frameLoaded) { frameLoaded = true; frameLoadMs = Date.now() - mountAt; }
     };
-    f.setAttribute('src', playSrc(p));
+    f.setAttribute('src', playSrc());
     box.appendChild(f);
     fitPlayer();
     /* 画面の向きや大きさが確定するのが一拍あとになる端末があるため、少し置いて測り直す */
@@ -1762,7 +1859,8 @@ function mountPlayer(c){
   } else {
     setBigVid(false);
     var a = document.createElement('a');
-    a.href = p ? (p.kind === 'list' ? 'https://m.youtube.com/playlist?list=' + p.id : 'https://m.youtube.com/watch?v=' + p.id) : c.linkFallback;
+    var cs = sourcesFor(c.kind)[chosenSrc(c.kind)];
+    a.href = cs ? ('https://m.youtube.com/playlist?list=' + cs.id) : c.linkFallback;
     a.className = 'bigBtn orange';
     a.style.textDecoration = 'none';
     a.textContent = '▶ どうがを ひらく';
@@ -1826,7 +1924,7 @@ function startIndexForToday(n, kind){
 function startVideo(){
   var c = videoConf();
   state.vidSkips = 0;              /* 今日の再生のはじまり＝飛ばした数を0に戻す */
-  vidBaked = bakedFor(c.url);
+  vidBaked = bakedForKind(c.kind);
   state.today.vidCur = startIndexForToday(
     (vidBaked && vidBaked.items) ? vidBaked.items.length : 0, c.kind);
   state.today.endAt = Date.now() + Math.round(c.minutes * 60000);
@@ -2107,6 +2205,12 @@ bindTap($('cfYes'), function(){ $('ovConfirm').className = 'ov'; if (cfCb) cfCb(
 bindTap($('cfNo'), function(){ $('ovConfirm').className = 'ov'; if (cfCb) cfCb(false); cfCb = null; });
 bindTap($('btnChallenge'), startChallenge);
 bindTap($('btnVidStart'), startVideo);
+/* チャンネルを選び直す＝選択を消して「どの チャンネルに する？」へ戻る。
+   まだ再生を始めていないときだけ押せる（始まると大画面になりこの札は隠れる）。 */
+bindTap($('btnVidBack'), function(){
+  setChosenSrc(videoConf().kind, -1);
+  render();
+});
 bindTap($('btnVidEnd'), function(){
   askConfirm('どうがを おしまいに する？', 'おしまいに する', 'まだ みる', function(yes){
     if (yes) endVideo(false);
