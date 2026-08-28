@@ -385,7 +385,7 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
   <div class="n-center">
     <div class="svgWrap"><svg id="svgMorning" viewBox="0 0 240 240"></svg></div>
     <h1>がんばったね！</h1>
-    <p>いってらっしゃい！ ✋</p>
+    <p id="mEndSub">いってらっしゃい！ ✋</p>
     <div class="v-center" style="margin-top:26px;">
       <button class="bigBtn orange" id="btnMorningGo">おかえりクエストへ ▶</button>
     </div>
@@ -599,7 +599,7 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 21;
+var APP_VERSION = 22;
 
 /* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
    上の APP_VERSION と隣り合っていると、版数を上げたときに
@@ -621,9 +621,10 @@ var KDI_VACATIONS = [
 ];
 
 var DEFAULT_SETTINGS = {
-  /* おはようクエスト（平日の朝だけ。ごほうびは無し＝どうがタイムもスタンプも付かない）。
-     おわると「がんばったね！ いってらっしゃい！」の画面になり、そのあと おかえりクエストへ切り替わる。
-     休日（土日・祝日・園の長期休み）は出さない＝れんらくちょう・わすれものチェックが園の日のものだから。 */
+  /* おはようクエスト（朝だけ。ごほうびは無し＝どうがタイムもスタンプも付かない）。
+     おわると「がんばったね！」の画面になり、そのあと きょうのクエストへ切り替わる。
+     平日と休日で札を分ける＝れんらくちょう・わすれものチェックは園の日のものだから。
+     平日の朝（登園の日）の札。 */
   morningTasks: [
     {e:'💦', t:'かおを あらう'},
     {e:'😁', t:'はを みがく'},
@@ -632,7 +633,16 @@ var DEFAULT_SETTINGS = {
     {e:'🎒', t:'わすれもの ないか チェック'},
     {e:'🍚', t:'ごはんを ぜんぶ たべる'}
   ],
-  /* この時刻より前に開いたら おはようクエスト。過ぎたら おかえりクエストへ自動で切り替わる */
+  /* 休日の朝（土日・祝日・園の長期休み）の札。
+     園へ持っていくもの（カトラリー・すいとう／れんらくちょう／わすれものチェック）は外す。
+     休日の1日クエスト（holidayTasks）と同じ札を置かない＝同じことを2回チェックさせないため。
+     足す・へらすときは、この表を書き替えるだけでよい。 */
+  morningTasksRest: [
+    {e:'💦', t:'かおを あらう'},
+    {e:'😁', t:'はを みがく'},
+    {e:'🍚', t:'あさごはんを ぜんぶ たべる'}
+  ],
+  /* この時刻より前に開いたら おはようクエスト。過ぎたら きょうのクエストへ自動で切り替わる */
   morningUntil: '12:00',
   /* クエスト① いえに ついたら すぐ やること（10ぷんの チャレンジ） */
   mainTasks: [
@@ -892,12 +902,20 @@ function quest2ByMin(){ return hhmmToMin(state.settings.quest2By, 19, 45); }
    「朝いちども開かなかった」日も、同じ1か所で拾える。 */
 function morningUntilMin(){ return hhmmToMin(state.settings.morningUntil, 12, 0); }
 function isMorningTime(){ return nowMin() < morningUntilMin(); }
-function morningTaskList(){ return state.settings.morningTasks || []; }
+/* 朝の札は平日と休日で入れかわる。
+   startPhase は state.today を作る前に呼ばれるので、休日かどうかを引数で受け取れる形にしておく
+   （まだ無い state.today を見に行かないため）。 */
+function morningListFor(rest){
+  return (rest ? state.settings.morningTasksRest : state.settings.morningTasks) || [];
+}
+function morningTaskList(){ return morningListFor(state.today && state.today.rest); }
+/* おはようクエストのあとに行く先。休日＝1枚のクエスト／平日＝おかえりなさいの画面 */
+function afterMorningPhase(){ return state.today.rest ? 'main' : 'welcome'; }
 function syncMorningPhase(){
   var ph = state.today.phase;
   if (ph !== 'morning' && ph !== 'morningEnd') return false;
   if (isMorningTime()) return false;
-  state.today.phase = 'welcome';
+  state.today.phase = afterMorningPhase();
   save();
   return true;
 }
@@ -952,11 +970,11 @@ function updateLimitBars(){
 
 
 /* きょう最初に出す画面。
-   休日＝1枚のクエスト／平日の朝＝おはようクエスト／それ以外＝おかえりなさいの画面 */
+   朝＝おはようクエスト（平日と休日で札がちがう）／
+   朝がすぎた休日＝1枚のクエスト／朝がすぎた平日＝おかえりなさいの画面 */
 function startPhase(rest){
-  if (rest) return 'main';
-  if (isMorningTime() && (state.settings.morningTasks || []).length > 0) return 'morning';
-  return 'welcome';
+  if (isMorningTime() && morningListFor(rest).length > 0) return 'morning';
+  return rest ? 'main' : 'welcome';
 }
 function newToday(t){
   var r = calcRestDay();
@@ -2121,11 +2139,16 @@ function render(){
   var ph = state.today.phase;
   if (ph === 'morning') {
     showScreen('scrMorning');
-    $('hdDateM').textContent = dateLabel();
+    $('hdDateM').textContent = dateLabel() + (state.today.rest ? '　🌞おやすみのひ' : '');
     buildCards('morningCards', morningTaskList(), state.today.doneMorning, 'morning');
     renderProgress('hdProgM', morningTaskList(), state.today.doneMorning);
   } else if (ph === 'morningEnd') {
     showScreen('scrMorningEnd');
+    /* 休日は出かけないので「いってらっしゃい」とは言わない */
+    $('mEndSub').textContent = state.today.rest ?
+      'きょうも いちにち たのしもう！ ✋' : 'いってらっしゃい！ ✋';
+    $('btnMorningGo').textContent = state.today.rest ?
+      'きょうの クエストへ ▶' : 'おかえりクエストへ ▶';
     drawMorningEnd();
   } else if (ph === 'welcome') {
     showScreen('scrWelcome');
@@ -2322,10 +2345,10 @@ bindTap($('btnCeleb'), function(){
 bindTap($('cfYes'), function(){ $('ovConfirm').className = 'ov'; if (cfCb) cfCb(true); cfCb = null; });
 bindTap($('cfNo'), function(){ $('ovConfirm').className = 'ov'; if (cfCb) cfCb(false); cfCb = null; });
 bindTap($('btnChallenge'), startChallenge);
-/* いってらっしゃい画面から おかえりクエストへ（朝のうちに手で進めたいとき用。
+/* おわりの画面から きょうのクエストへ（朝のうちに手で進めたいとき用。
    時間が来れば syncMorningPhase が自動で切り替える） */
 bindTap($('btnMorningGo'), function(){
-  state.today.phase = 'welcome';
+  state.today.phase = afterMorningPhase();
   save();
   render();
 });
@@ -2387,7 +2410,8 @@ $('btnCloseSet').addEventListener('click', function(){ $('ovSettings').className
 $('btnToggleRest').addEventListener('click', function(){
   /* 休日⇄平日の手動切替（園の急な休みなど、表に無い日のため）。
      クエストが先へ進んだあとに切り替えると、できた印の位置がずれるので、最初の画面のときだけ。 */
-  if (state.today.phase !== 'main') {
+  var atMorning = (state.today.phase === 'morning' || state.today.phase === 'morningEnd');
+  if (state.today.phase !== 'main' && !atMorning) {
     window.alert('きょうのクエストはもう先へ進んでいます。切り替えるには、先に「きょうを やりなおす」を押してください。');
     return;
   }
@@ -2396,6 +2420,11 @@ $('btnToggleRest').addEventListener('click', function(){
     state.today.rest = !state.today.rest;
     state.today.doneMain = [];
     state.today.sento = false;
+    /* 朝の画面から切り替えたときは、朝の札も入れかわる＝チェックを消して出し直す */
+    if (atMorning) {
+      state.today.doneMorning = [];
+      state.today.phase = startPhase(state.today.rest);
+    }
     save();
     $('ovSettings').className = 'ov';
     render();
