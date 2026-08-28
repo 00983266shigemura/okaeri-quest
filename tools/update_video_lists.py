@@ -33,11 +33,26 @@ import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 INDEX = os.path.join(os.path.dirname(HERE), 'index.html')
-FEED = 'https://www.youtube.com/feeds/videos.xml?playlist_id=%s'
+CHANNEL_FEED = 'https://www.youtube.com/feeds/videos.xml?channel_id=%s'
+PLAYLIST_FEED = 'https://www.youtube.com/feeds/videos.xml?playlist_id=%s'
 OEMBED = 'https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=%s&format=json'
 UA = 'okaeri-quest-updater'
 LINE_RE = re.compile(r'^var VIDEO_LISTS = (.*);$', re.M)
-MAX_ITEMS = 15
+PER_SOURCE = 15      # 1つの供給源から取る本数（RSSが返す上限）
+MAX_ITEMS = 30       # 1つの枠に載せる上限（複数チャンネルを混ぜたときの合計）
+
+
+def feed_url(src):
+    """供給源のIDから、取りにいくRSSのURLを決める。
+
+    UU…＝チャンネルの投稿一覧。UCへ戻して **チャンネルのRSS** を使う。
+      こちらは2026-08-26まで毎朝動いていた実績がある（便のログで実測）。
+    PL…＝しげが作った再生リスト。再生リストのRSSを使う。
+    実績のある経路をわざわざ変えない、というのがこの分岐の趣旨。
+    """
+    if src.startswith('UU'):
+        return CHANNEL_FEED % ('UC' + src[2:])
+    return PLAYLIST_FEED % src
 
 
 def fail(msg):
@@ -71,13 +86,18 @@ def embeddable(vid):
 
 
 def parse_feed(xml):
+    """1件ずつから 動画ID・題名・公開日 を取り出す。公開日は複数チャンネルを混ぜて
+    新しい順に並べるために使う（RSSは供給源ごとにしか並んでいないため）。"""
     items = []
     for entry in re.findall(r'<entry>(.*?)</entry>', xml, re.S):
         mid = re.search(r'<yt:videoId>([\w-]+)</yt:videoId>', entry)
         mti = re.search(r'<title>(.*?)</title>', entry, re.S)
+        mpu = re.search(r'<published>([^<]+)</published>', entry)
         if mid and mti:
-            items.append({'id': mid.group(1), 't': html.unescape(mti.group(1)).strip()})
-        if len(items) >= MAX_ITEMS:
+            items.append({'id': mid.group(1),
+                          't': html.unescape(mti.group(1)).strip(),
+                          'pub': mpu.group(1).strip() if mpu else ''})
+        if len(items) >= PER_SOURCE:
             break
     return items
 
@@ -97,22 +117,41 @@ def main():
 
     updated = {}
     for key in sorted(lists.keys()):
-        playlist = lists[key].get('list', '')
-        if not re.match(r'^(UU|PL)[\w-]+$', playlist):
-            fail('%s の再生リストIDが想定外です: %s' % (key, playlist))
+        conf = lists[key]
+        primary = conf.get('list', '')
+        # 供給源は複数書ける（channels）。書いていなければ list の1つだけを使う。
+        srcs = conf.get('channels') or [primary]
+        if not srcs or not all(re.match(r'^(UU|PL)[\w-]+$', s) for s in srcs):
+            fail('%s の供給源IDが想定外です: %s' % (key, srcs))
 
-        items = parse_feed(fetch(FEED % playlist))
-        if not items:
-            fail('%s (%s) から動画を取得できませんでした' % (key, playlist))
+        merged, seen = [], set()
+        for s in srcs:
+            got = parse_feed(fetch(feed_url(s)))
+            if not got:
+                fail('%s (%s) から動画を取得できませんでした' % (key, s))
+            for it in got:
+                if it['id'] not in seen:      # 同じ動画が複数の供給源にあっても1本にする
+                    seen.add(it['id'])
+                    merged.append(it)
+            if len(srcs) > 1:
+                sys.stdout.write('%s: %s から %d本\n' % (key, s, len(got)))
 
-        kept = [it for it in items if embeddable(it['id'])]
-        if len(kept) < len(items):
+        # 新しい順に並べる（複数チャンネルを混ぜても公開日で一列にする）
+        merged.sort(key=lambda e: (e.get('pub', ''), e['id']), reverse=True)
+
+        kept = [it for it in merged if embeddable(it['id'])]
+        if len(kept) < len(merged):
             sys.stdout.write('%s: 見られない動画 %d本を外しました\n'
-                             % (key, len(items) - len(kept)))
+                             % (key, len(merged) - len(kept)))
         if not kept:
-            fail('%s (%s) は見られる動画が0本でした' % (key, playlist))
+            fail('%s は見られる動画が0本でした' % key)
 
-        updated[key] = {'list': playlist, 'items': kept}
+        kept = kept[:MAX_ITEMS]
+        out_conf = {'list': primary}
+        if conf.get('channels'):
+            out_conf['channels'] = srcs
+        out_conf['items'] = [{'id': e['id'], 't': e['t']} for e in kept]
+        updated[key] = out_conf
         sys.stdout.write('%s: %d本\n' % (key, len(kept)))
 
     new_line = 'var VIDEO_LISTS = ' + json.dumps(
