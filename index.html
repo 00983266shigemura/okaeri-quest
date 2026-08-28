@@ -416,7 +416,9 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
     <div class="mid">
       <div class="pbtn">&#9654;</div>
       <div><span class="cmsg" id="covMsg"></span></div>
-      <div><button class="retry" id="btnVidRetry">もういちど</button></div>
+      <!-- 「もういちど」ボタンは2026-08-28に撤去した。押しても呼び方が変わるだけで直らないことが
+           実機実測で確定し、子どもに無駄な操作をさせていたため。いまは自動で次の動画へ移る。
+           手で選び直したいときは、下の まえ／つぎ／えらぶ が使える。 -->
     </div>
     <div class="diag" id="covDiag"></div>
   </div>
@@ -554,7 +556,7 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 15;
+var APP_VERSION = 16;
 
 /* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
    上の APP_VERSION と隣り合っていると、版数を上げたときに
@@ -1084,7 +1086,10 @@ function thumbUrl(idx){
    'fail' ＝待っても返事が来ない＝押しても始まらない状態。「もういちど」を出す
    **▶は'ready'のときしか出さない**＝出ているのに押しても動かない、という嘘をつかないため
    （2026-08-23しげ指摘。以前は「4秒たったら」でも案内を出しており、これが嘘の原因だった）。 */
-var VID_FAIL_MS = 12000;
+/* 見切りは6秒。2026-08-28の実機実測で、**うまくいく時の返事は1〜2秒で来る**ことが分かった
+   （実験ページの成功例＝返事1秒・2秒）。一方、駄目な時は22秒待っても一度も返事が来なかった。
+   ＝6秒あれば十分に区別がつく。長く待つほど子どもが黒い画面の前で待たされるだけなので短くする。 */
+var VID_FAIL_MS = 6000;
 var vidMode = '';
 function setVidUI(mode){
   if (mode === vidMode) return;
@@ -1092,17 +1097,24 @@ function setVidUI(mode){
   var cov = $('vidCover'), msg = $('covMsg');
   if (!cov) return;
   cov.style.visibility = (mode === 'play') ? 'hidden' : 'visible';
-  cov.className = (mode === 'ready') ? 'ready' : (mode === 'fail' ? 'fail' : '');
+  cov.className = (mode === 'ready') ? 'ready'
+                : ((mode === 'fail' || mode === 'stuck') ? 'fail' : '');
   if (mode === 'load') {
     msg.textContent = 'よみこみちゅう...';
   } else if (mode === 'ready') {
     msg.textContent = 'タップすると はじまるよ';
   } else if (mode === 'fail') {
-    /* 「失敗」と言い切らない＝この後に返事が来ればすぐ ready へ戻る（待つのはやめていない）。
-       子どもが待たされ続けないよう、押せる手をここで出す。 */
-    msg.textContent = 'まだ はじまらないね。もういちど おしてみて';
+    /* この動画は「いま再生できない」。子どもに操作をさせず、こちらで次の動画へ移る
+       （2026-08-28まで「もういちど」を押させていたが、押しても呼び方が変わるだけで
+       直らないことが実測で確定したため撤去した）。 */
+    msg.textContent = 'この どうがは いま みられないみたい。つぎを さがすね';
     $('covDiag').textContent = vidDiag();
     logVid('fail');
+    giveUpAndSkip();
+  } else if (mode === 'stuck') {
+    /* 続けて何本も駄目だった＝これ以上は自動で進まない。おとなに気づいてもらう。 */
+    msg.textContent = 'ごめんね、いま どうがが みられないみたい。おうちのひとを よんでね';
+    $('covDiag').textContent = vidDiag();
   }
 }
 /* うまくいかなかったときだけ、おうちのひとが原因を追えるように状態を出す。
@@ -1116,7 +1128,7 @@ function vidDiag(){
     ' / へんじ=' + (ytLive ? 'あり' : 'なし') +
     ' / じょうたい=' + ytState +
     ' / けいか=' + Math.round((Date.now() - mountAt) / 1000) + 'びょう' +
-    ' / よびかた=' + vidStrategy() +
+    ' / とばした=' + skipCount() +
     ' / わく=' + (f ? (f.style.width + 'x' + f.style.height) : 'なし') +
     ' / え=' + (thumbOk === null ? '?' : (thumbOk ? 'よめた' : 'よめない'));
 }
@@ -1132,7 +1144,6 @@ function logVid(result){
     live: ytLive ? 1 : 0,
     st: ytState,
     ms: Date.now() - mountAt,
-    tr: vidStrategy(),
     id: it ? it.id : ''
   });
   if (state.vidLog.length > 10) state.vidLog = state.vidLog.slice(state.vidLog.length - 10);
@@ -1169,48 +1180,121 @@ function bakedFor(url){
   return null;
 }
 var EMBED_EXTRA = '&enablejsapi=1&iv_load_policy=3';
-/* 呼び方を3通り用意し、うまくいかないときに順ぐりに変える。
-   なぜ起動しないことがあるのかは未解明のため、条件を1つずつ変えて記録に残し、
-   どれで直るかを実機の事実から突き止める（推測で決め打ちしない）。
-     0 = これまでどおり（再生リスト付き・いちばん重い）
-     1 = 再生リストを外して1本だけ（軽い）
-     2 = 広告追跡なしの入口（youtube-nocookie）で1本だけ
-   3通りだめなら別の動画へ移る（その動画だけの問題かを切り分けるため）。 */
-var VID_TRY_MAX = 3;
-function vidStrategy(){
-  var t = (state && typeof state.vidTry === 'number') ? state.vidTry : 0;
-  return t % VID_TRY_MAX;
-}
+/* 呼び方は1通りに固定した（2026-08-28の実機実測による）。
+   専用の実験ページ video_test.html で、同じ動画に対し5条件
+   （今の作り／origin付き／nocookie／enablejsapiなし／widget_referrer付き）を試したところ、
+   **返事の有無が1つも変わらなかった**＝呼び方を変えて直る問題ではないと確定した。
+   したがって「呼び方を順ぐりに変える」仕掛けは効果がないので撤去する（要素を減らす）。
+   再生リスト付きの形（旧・呼び方0）は、いちばん重いうえ実機で0勝4敗だったため使わない。
+   まえ/つぎ/えらぶ は自前のボタンで動くので、再生リスト形式は元から不要。 */
 function playSrc(p){
-  var it, s = vidStrategy(), host, q;
+  var it;
   if (vidBaked && vidBaked.items.length) {
     it = vidBaked.items[curIndex()];
     if (it) {
-      host = (s === 2) ? 'https://www.youtube-nocookie.com/embed/' : 'https://www.youtube.com/embed/';
       /* autoplay は付けない。iOSでは効かないうえ、再生に失敗したプレーヤーが
          サムネイルも出さず黒いまま固まるため（黒画面の原因）。 */
-      q = '?playsinline=1&rel=0&controls=1' + EMBED_EXTRA;
-      if (s === 0) q = '?list=' + vidBaked.list + '&playsinline=1&rel=0&controls=1' + EMBED_EXTRA;
-      return host + it.id + q;
+      return 'https://www.youtube.com/embed/' + it.id +
+             '?playsinline=1&rel=0&controls=1' + EMBED_EXTRA;
     }
   }
   return embedSrc(p);
 }
-/* 「もういちど」＝呼び方を次の手へ変えて読み込み直す。
-   同じ呼び方で読み直しても直らないことが実機で分かっているため（2026-08-23しげ実測
-   「何度も『もういちど』になり、解消されない」）、同じことを繰り返さない。 */
-function retryVideo(){
-  var t = (state && typeof state.vidTry === 'number') ? state.vidTry : 0;
-  t = t + 1;
-  if (t >= VID_TRY_MAX) {
-    state.vidTry = 0;
-    save();
-    vidJump(1);   /* 3通りだめ＝別の動画にする（この中で保存と読み直しをする） */
-    return;
-  }
-  state.vidTry = t;
+
+/* ---------- 再生できない動画をおぼえる ----------
+   2026-08-28の実機実測で分かったこと＝この端末には MediaSource（動画を細切れに読む仕組み）が無い。
+   YouTubeの今のプレーヤーはそれを前提にしており、**動画によって再生できたりできなかったりする**。
+   しかも、その可否は**外（サーバの情報）からは見分けられない**（4本を調べたが埋め込み可・
+   再生可・形式まで完全に同一だった）。実際に試す以外に判定手段がない。
+
+   そこで、試した結果だけをおぼえる。設計の要点は3つ。
+   (1) おぼえるのは**動画ID単位**。並び順（何番目か）ではおぼえない
+       ＝一覧を頻繁に入れ替える前提のため（しげ指示2026-08-28「今後も再生リストは頻繁に差し替える」）。
+   (2) **わるい動画を避けるだけで、良い動画をひいきしない**。
+       ひいきすると同じ動画ばかりになり、飽きてしまう（しげ指示「動画のバリエーションがないと飽きる」）。
+       避ける対象以外はすべて等しく出す。
+   (3) **永久追放にしない**。YouTube側の事情は変わりうるので、一定期間で復活させる。 */
+var BAD_TRIES = 2;                        /* この回数だけ失敗したら、しばらく出さない */
+var BAD_DAYS = 14;                        /* しばらく＝この日数で復活する */
+var BAD_MAX = 200;                        /* おぼえる上限（一覧を入れ替え続けても膨らませない） */
+
+function badMap(){
+  if (!state.vidBad || typeof state.vidBad !== 'object') state.vidBad = {};
+  return state.vidBad;
+}
+/* 「いま出さない動画」か。回数が足りているうちは出す＝1回の失敗で決めつけない。 */
+function isBadNow(id){
+  var b = badMap()[id];
+  if (!b || !(b.n >= BAD_TRIES)) return false;
+  var days = (Date.now() - (b.t || 0)) / 86400000;
+  return days < BAD_DAYS;
+}
+function markBad(id){
+  var m = badMap(), b = m[id];
+  if (!b) { b = { n: 0, t: 0 }; m[id] = b; }
+  b.n = b.n + 1;
+  b.t = Date.now();
   save();
-  location.reload();
+}
+/* 再生できたら記録を消す＝たまたまの失敗を引きずらない。 */
+function clearBad(id){
+  var m = badMap();
+  if (m[id]) { delete m[id]; save(); }
+}
+/* 一覧から消えた動画の記録を捨てる。一覧を入れ替え続けても記録が増え続けないようにする。 */
+function pruneBad(){
+  var m = badMap(), keep = {}, k, i, items, n = 0, oldest, oldestK;
+  if (!vidBaked || !vidBaked.items) return;
+  items = vidBaked.items;
+  for (i = 0; i < items.length; i++) keep[items[i].id] = true;
+  for (k in m) { if (m.hasOwnProperty(k) && !keep[k]) delete m[k]; }
+  /* それでも上限を超えたら、いちばん古い記録から捨てる */
+  for (k in m) { if (m.hasOwnProperty(k)) n++; }
+  while (n > BAD_MAX) {
+    oldest = null; oldestK = null;
+    for (k in m) {
+      if (!m.hasOwnProperty(k)) continue;
+      if (oldest === null || (m[k].t || 0) < oldest) { oldest = m[k].t || 0; oldestK = k; }
+    }
+    if (oldestK === null) break;
+    delete m[oldestK];
+    n--;
+  }
+  save();
+}
+/* いまの位置から、出してよい動画を前向きに探す。
+   一周して見つからなければ -1（＝全部だめ）。 */
+function findPlayable(from){
+  var i, n, id;
+  if (!vidBaked || !vidBaked.items || !vidBaked.items.length) return -1;
+  n = vidBaked.items.length;
+  for (i = 0; i < n; i++) {
+    id = vidBaked.items[(from + i + n * 2) % n].id;
+    if (!isBadNow(id)) return (from + i + n * 2) % n;
+  }
+  return -1;
+}
+/* 続けて何本も駄目だったときに、読み直しが際限なく続かないようにする上限。
+   ページを読み直すたびに数えたいので、端末の保存値で数える。 */
+function skipCount(){
+  return (state && typeof state.vidSkips === 'number') ? state.vidSkips : 0;
+}
+function maxSkips(){
+  var n = (vidBaked && vidBaked.items) ? vidBaked.items.length : 0;
+  return (n > 0 && n < 8) ? n : 8;
+}
+/* 返事が来ないまま見切った＝この動画は「いま再生できない」。記録して、すぐ次の動画へ移る。
+   （呼び方を変えて粘るのは効果がないと実測で分かったので、粘らずに次へ行く） */
+function giveUpAndSkip(){
+  var it = (vidBaked && vidBaked.items) ? vidBaked.items[curIndex()] : null;
+  var nextI;
+  if (it) markBad(it.id);
+  state.vidSkips = skipCount() + 1;
+  save();
+  if (state.vidSkips > maxSkips()) return;   /* 上限＝これ以上は自動で進まない */
+  nextI = findPlayable(curIndex() + 1);
+  if (nextI < 0) return;                     /* 出せる動画が無い */
+  gotoIndex(nextI);                          /* この中で保存と読み直しをする */
 }
 function embedSrc(p){
   if (p.kind === 'list') return 'https://www.youtube.com/embed/videoseries?list=' + p.id + '&playsinline=1&rel=0' + EMBED_EXTRA;
@@ -1288,8 +1372,12 @@ window.addEventListener('message', function(ev){
       if (ytState === 1) {
         if (!ytPlayed) {
           ytPlayed = true; ytCaptionsOff(); logVid('ok');
-          /* うまくいった呼び方を次回の既定に戻す（次はいちばん良い形から始める） */
-          if (state.vidTry) { state.vidTry = 0; save(); }
+          /* 再生できた＝この動画の「わるい記録」を消す（たまたまの失敗を引きずらない）。
+             続けて飛ばした数もここで0に戻す。 */
+          if (vidBaked && vidBaked.items && vidBaked.items[curIndex()]) {
+            clearBad(vidBaked.items[curIndex()].id);
+          }
+          if (skipCount() !== 0) { state.vidSkips = 0; save(); }
         }
         setVidUI('play');
       }
@@ -1792,7 +1880,17 @@ function openPick(){
 }
 function startVideo(){
   var c = videoConf();
+  var first;
   state.today.vidCur = 0;
+  state.vidSkips = 0;              /* 今日の再生のはじまり＝飛ばした数を0に戻す */
+  /* 1本目を選ぶ前に、いま出せない動画を飛ばす＝いきなり黒い画面から始まるのを防ぐ。
+     並びは変えない（先頭から順に見て、出せる最初の1本にするだけ）＝ひいきをしない。 */
+  vidBaked = bakedFor(c.url);
+  if (vidBaked && vidBaked.items && vidBaked.items.length) {
+    pruneBad();
+    first = findPlayable(0);
+    state.today.vidCur = (first < 0) ? 0 : first;
+  }
   state.today.endAt = Date.now() + Math.round(c.minutes * 60000);
   save();
   $('vidTitle').textContent = c.title;
@@ -1870,7 +1968,7 @@ function tick(){
       /* 一度でも再生が始まったら、以後まくは出さない（途中で止めたときに画面を覆わない） */
       if (ytPlayed) setVidUI('play');
       else if (ytLive) setVidUI('ready');
-      else if (el > VID_FAIL_MS) setVidUI('fail');
+      else if (el > VID_FAIL_MS) setVidUI(skipCount() >= maxSkips() ? 'stuck' : 'fail');
       else setVidUI('load');
       updateSeekUI();
     }
@@ -2035,10 +2133,20 @@ function openSettings(){
       '　枠読込=' + (v.fl ? ('済' + Math.round((v.flms || 0) / 1000) + '秒') : '未') +
       '　返事=' + (v.live ? 'あり' : 'なし') +
       '　状態=' + v.st +
-      '　呼び方=' + (typeof v.tr === 'number' ? v.tr : '?') +
       '　' + Math.round(v.ms / 1000) + '秒' +
       (v.id ? ('　' + v.id) : ''));
   }
+  /* いま出さないことにしている動画を、おうちのひとに見えるようにする
+     （勝手に減っているように見えないため。何日で戻るかも書く） */
+  var bm = badMap(), bk, bnow = 0, ball = 0;
+  for (bk in bm) {
+    if (!bm.hasOwnProperty(bk)) continue;
+    ball++;
+    if (isBadNow(bk)) bnow++;
+  }
+  vlines.push('');
+  vlines.push('いま出さない動画＝' + bnow + '本（記録は' + ball + '本・' +
+              BAD_TRIES + '回つづけて始まらないと' + BAD_DAYS + '日おやすみ、そのあと自動で戻る）');
   vb.textContent = vlines.length ? vlines.join('\n') : 'まだ記録がありません。';
   vb.style.whiteSpace = 'pre-line';
   var hb = $('histBox'), i, h, lines = [];
@@ -2079,7 +2187,6 @@ bindTap($('btnVidEnd'), function(){
 });
 /* 「もういちど」＝呼び方を次の手へ変えて作り直す（同じことを繰り返さない）
    （古いiOSは再生中の枠を作り替えると2本目以降が黒くなるため、作り直しは常にページごと） */
-bindTap($('btnVidRetry'), retryVideo);
 bindTap($('btnVidPrev'), function(){ vidJump(-1); });
 bindTap($('btnVidNext'), function(){ vidJump(1); });
 bindTap($('btnVidPick'), openPick);
