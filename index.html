@@ -304,6 +304,12 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
 #scrNight h1 { font-size:27px; margin:14px 0 8px; color:#F0E442; }
 #scrNight p { font-size:22px; }
 
+/* いってらっしゃい画面（おはようクエストのおわり） */
+#scrMorningEnd { background:#0072B2; color:#fff; }
+#scrMorningEnd .n-center { text-align:center; padding-top:50px; }
+#scrMorningEnd h1 { font-size:30px; margin:14px 0 8px; color:#F0E442; }
+#scrMorningEnd p { font-size:24px; margin:6px 0; }
+
 /* 設定 */
 #btnGear {
   position:fixed; top:10px; right:10px; z-index:40;
@@ -365,6 +371,26 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
 <body>
 
 <button id="btnGear">⚙</button>
+
+<div class="screen" id="scrMorning">
+  <div class="hd">
+    <div class="hd-date" id="hdDateM"></div>
+    <h1 class="hd-title">おはよう クエスト</h1>
+    <div class="hd-progress" id="hdProgM"></div>
+  </div>
+  <div class="cards" id="morningCards"></div>
+</div>
+
+<div class="screen" id="scrMorningEnd">
+  <div class="n-center">
+    <div class="svgWrap"><svg id="svgMorning" viewBox="0 0 240 240"></svg></div>
+    <h1>がんばったね！</h1>
+    <p>いってらっしゃい！ ✋</p>
+    <div class="v-center" style="margin-top:26px;">
+      <button class="bigBtn orange" id="btnMorningGo">おかえりクエストへ ▶</button>
+    </div>
+  </div>
+</div>
 
 <div class="screen" id="scrWelcome">
   <div class="hd">
@@ -573,7 +599,7 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 20;
+var APP_VERSION = 21;
 
 /* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
    上の APP_VERSION と隣り合っていると、版数を上げたときに
@@ -595,6 +621,19 @@ var KDI_VACATIONS = [
 ];
 
 var DEFAULT_SETTINGS = {
+  /* おはようクエスト（平日の朝だけ。ごほうびは無し＝どうがタイムもスタンプも付かない）。
+     おわると「がんばったね！ いってらっしゃい！」の画面になり、そのあと おかえりクエストへ切り替わる。
+     休日（土日・祝日・園の長期休み）は出さない＝れんらくちょう・わすれものチェックが園の日のものだから。 */
+  morningTasks: [
+    {e:'💦', t:'かおを あらう'},
+    {e:'😁', t:'はを みがく'},
+    {e:'🍴🍵', t:'カトラリー・すいとうを いれる'},
+    {e:'✏️', t:'れんらくちょうを かく', sub:'パパ・ママ'},
+    {e:'🎒', t:'わすれもの ないか チェック'},
+    {e:'🍚', t:'ごはんを ぜんぶ たべる'}
+  ],
+  /* この時刻より前に開いたら おはようクエスト。過ぎたら おかえりクエストへ自動で切り替わる */
+  morningUntil: '12:00',
   /* クエスト① いえに ついたら すぐ やること（10ぷんの チャレンジ） */
   mainTasks: [
     {e:'👟', t:'くつを そろえる'},
@@ -626,7 +665,7 @@ var DEFAULT_SETTINGS = {
     {e:'😁', t:'はを みがく'},
     {e:'💦', t:'かおを あらう'},
     {e:'🐾', t:'ペットの おせわ'},
-    {e:'🎒', t:'あしたの じゅんび'},
+    {e:'🎒', t:'あしたの じゅんび', prep:1},
     {e:'📦', t:'おかたづけ', sub:'ゆかに おもちゃや ほんが ない'}
   ],
   bedCutoff: '20:30',
@@ -640,6 +679,15 @@ var DEFAULT_SETTINGS = {
   mode: 'embed',
   stampGoal: 10,
   rewards: ['カブトムシロボ']
+};
+
+/* ---------- ならいごとの もちもの 確認（「あしたの じゅんび」の札） ----------
+   きょうの曜日で決める（しげ決定 2026-08-28＝「きょうが火曜/木曜のとき」）。
+   0=にち 1=げつ 2=か 3=すい 4=もく 5=きん 6=ど。
+   ならいごとを足す・やめるときは、この表を書き替えるだけでよい。 */
+var PREP_BY_DAY = {
+  2: 'サッカー',
+  4: 'ヒップホップ'
 };
 
 var PETIT_SEARCH_URL = 'https://m.youtube.com/results?search_query=%E3%83%94%E3%82%BF%E3%82%B4%E3%83%A9%E3%82%B9%E3%82%A4%E3%83%83%E3%83%81';
@@ -838,6 +886,22 @@ function nowMin(){
 function bedTimeOver(){ return nowMin() > bedCutoffMin(); }
 function quest2ByMin(){ return hhmmToMin(state.settings.quest2By, 19, 45); }
 
+/* ---------- おはようクエストの時間帯 ----------
+   morningUntil より前＝朝。過ぎたら おかえりクエストへ切り替える。
+   これで「朝ぜんぶ終わって画面が出たまま夕方に開いた」日も、
+   「朝いちども開かなかった」日も、同じ1か所で拾える。 */
+function morningUntilMin(){ return hhmmToMin(state.settings.morningUntil, 12, 0); }
+function isMorningTime(){ return nowMin() < morningUntilMin(); }
+function morningTaskList(){ return state.settings.morningTasks || []; }
+function syncMorningPhase(){
+  var ph = state.today.phase;
+  if (ph !== 'morning' && ph !== 'morningEnd') return false;
+  if (isMorningTime()) return false;
+  state.today.phase = 'welcome';
+  save();
+  return true;
+}
+
 /* ---------- しめきりバー（のこり時間の棒グラフ） ----------
    remainSec = のこり秒（マイナス＝過ぎている）／totalSec = 満タンのときの秒数。
    棒の長さと数字とことばの3つで伝える（色だけに頼らない）。 */
@@ -887,36 +951,45 @@ function updateLimitBars(){
 }
 
 
+/* きょう最初に出す画面。
+   休日＝1枚のクエスト／平日の朝＝おはようクエスト／それ以外＝おかえりなさいの画面 */
+function startPhase(rest){
+  if (rest) return 'main';
+  if (isMorningTime() && (state.settings.morningTasks || []).length > 0) return 'morning';
+  return 'welcome';
+}
+function newToday(t){
+  var r = calcRestDay();
+  return {
+    date: t, phase: startPhase(r),
+    doneMorning: [], doneMain: [], doneMain2: [], doneAfter: [],
+    finishMin: null,
+    endAt: null,
+    rest: r,
+    sento: false,
+    chStart: null,   /* チャレンジを始めた時刻 */
+    chWin: null      /* 10ぷん以内に クエスト①を終えたか */
+  };
+}
 function ensureToday(){
   var t = todayStr();
   if (!state.today || state.today.date !== t) {
-    state.today = {
-      date: t, phase: calcRestDay() ? 'main' : 'welcome',
-      doneMain: [], doneMain2: [], doneAfter: [],
-      finishMin: null,
-      endAt: null,
-      rest: calcRestDay(),
-      sento: false,
-      chStart: null,   /* チャレンジを始めた時刻 */
-      chWin: null      /* 10ぷん以内に クエスト①を終えたか */
-    };
+    state.today = newToday(t);
     save();
     return true;
   }
   /* 古い版で作られた「きょう」は入れ物の形が違う＝作り直す（その日の途中で版が変わった時だけ） */
   if (!state.today.doneMain2) {
-    state.today = {
-      date: t, phase: calcRestDay() ? 'main' : 'welcome',
-      doneMain: [], doneMain2: [], doneAfter: [],
-      finishMin: null, endAt: null,
-      rest: calcRestDay(), sento: false, chStart: null, chWin: null
-    };
+    state.today = newToday(t);
     save();
     return true;
   }
   /* 古い版で作られた「きょう」には休日判定が入っていないので、ここで埋める */
   if (state.today.rest === undefined) { state.today.rest = calcRestDay(); save(); }
   if (state.today.sento === undefined) { state.today.sento = false; }
+  /* v20までの「きょう」にはおはようクエストの入れ物が無いので、ここで足す
+     （作り直さない＝その日にチェック済みのクエストを消さないため） */
+  if (!state.today.doneMorning) { state.today.doneMorning = []; save(); }
   return false;
 }
 
@@ -1423,7 +1496,7 @@ function fmtHM(min){
 
 /* ---------- 画面切替 ---------- */
 function showScreen(id){
-  var ids = ['scrWelcome','scrMain','scrMain2','scrVideo','scrAfter','scrStamp','scrNight'], i;
+  var ids = ['scrMorning','scrMorningEnd','scrWelcome','scrMain','scrMain2','scrVideo','scrAfter','scrStamp','scrNight'], i;
   if (id !== 'scrVideo') setBigVid(false);
   /* 下にしめきりバーが出る画面は、札が隠れないよう余白を足す */
   var withBar = { scrMain: 1, scrMain2: 1, scrAfter: 1 };
@@ -1519,11 +1592,13 @@ function renderProgress(elId, tasks, doneArr){
   return n;
 }
 function tasksOf(kind){
+  if (kind === 'morning') return morningTaskList();
   if (kind === 'main') return mainTaskList();
   if (kind === 'main2') return main2TaskList();
   return state.settings.afterTasks;
 }
 function doneOf(kind){
+  if (kind === 'morning') return state.today.doneMorning;
   if (kind === 'main') return state.today.doneMain;
   if (kind === 'main2') return state.today.doneMain2;
   return state.today.doneAfter;
@@ -1540,6 +1615,17 @@ function onTaskTap(kind, idx, el){
       }
     });
     return;
+  }
+  /* ならいごとの日は「あしたの じゅんび」で もちものを確かめる。
+     「まだ」を選んだら札は できたにならない＝用意しに行ってから もういちど押す */
+  if (tasks[idx].prep) {
+    var prepName = PREP_BY_DAY[(new Date()).getDay()];
+    if (prepName) {
+      askConfirm(prepName + 'の ようい した？', 'した！', 'まだ', function(yes){
+        if (yes) finishTask(kind, idx, el, tasks, done);
+      });
+      return;
+    }
   }
   if (isBath) {
     /* おふろの札だけは2択＝どちらを選んでも「できた」になる。せんとうはボーナスつき */
@@ -1566,7 +1652,12 @@ function finishTask(kind, idx, el, tasks, done){
   el.className = 'card done pop';
   var stampEl = el;
   setTimeout(function(){ stampEl.className = 'card done'; }, 550);
-  if (kind === 'main') {
+  if (kind === 'morning') {
+    renderProgress('hdProgM', tasks, done);
+    if (countDone(done, tasks.length) === tasks.length) {
+      setTimeout(completeMorning, 650);
+    }
+  } else if (kind === 'main') {
     renderProgress('hdProg', tasks, done);
     if (countDone(done, tasks.length) === tasks.length) {
       setTimeout(completeMain, 650);
@@ -1591,6 +1682,15 @@ function countDone(arr, n){
 
 
 /* ---------- フェーズ進行 ---------- */
+/* おはようクエストは ごほうび無し＝どうがタイムもスタンプも付かない。
+   おわったら「がんばったね！ いってらっしゃい！」の画面を出すだけ。 */
+function completeMorning(){
+  if (state.today.phase !== 'morning') return;
+  state.today.phase = 'morningEnd';
+  save();
+  sndSmallFanfare();
+  render();
+}
 function startChallenge(){
   state.today.chStart = Date.now();
   state.today.phase = 'main';
@@ -1987,6 +2087,8 @@ function hideCeleb(){ $('ovCeleb').className = 'ov'; celebBtnAction = null; }
 /* ---------- 毎秒処理 ---------- */
 function tick(){
   if (ensureToday()) { render(); return; }
+  /* 朝の時間帯が終わったら おかえりクエストへ切り替える */
+  if (syncMorningPhase()) { render(); return; }
   var ph = state.today.phase;
   if (ph === 'main' || ph === 'main2' || ph === 'after') updateLimitBars();
   if ((ph === 'video1' || ph === 'video2') && state.today.endAt) {
@@ -2017,7 +2119,15 @@ function render(){
   $('hdDate').textContent = dateLabel() + (state.today.rest ? '　🌞おやすみのひ' : '');
   hideOverlays();
   var ph = state.today.phase;
-  if (ph === 'welcome') {
+  if (ph === 'morning') {
+    showScreen('scrMorning');
+    $('hdDateM').textContent = dateLabel();
+    buildCards('morningCards', morningTaskList(), state.today.doneMorning, 'morning');
+    renderProgress('hdProgM', morningTaskList(), state.today.doneMorning);
+  } else if (ph === 'morningEnd') {
+    showScreen('scrMorningEnd');
+    drawMorningEnd();
+  } else if (ph === 'welcome') {
     showScreen('scrWelcome');
     $('hdDateW').textContent = dateLabel();
     $('welcomeMsg').textContent = (state.settings.challengeMin || 10) + 'ぷんで カード' +
@@ -2075,6 +2185,14 @@ function render(){
     showScreen('scrNight');
     drawNight();
   }
+}
+/* いってらっしゃい画面。花丸は1日1回だけ描く（開き直すたびに描き直さない） */
+var morningDrawn = '';
+function drawMorningEnd(){
+  if (morningDrawn === state.today.date) return;
+  morningDrawn = state.today.date;
+  drawHanamaru($('svgMorning'));
+  confetti();
 }
 var nightDrawn = '';
 function drawNight(){
@@ -2204,6 +2322,13 @@ bindTap($('btnCeleb'), function(){
 bindTap($('cfYes'), function(){ $('ovConfirm').className = 'ov'; if (cfCb) cfCb(true); cfCb = null; });
 bindTap($('cfNo'), function(){ $('ovConfirm').className = 'ov'; if (cfCb) cfCb(false); cfCb = null; });
 bindTap($('btnChallenge'), startChallenge);
+/* いってらっしゃい画面から おかえりクエストへ（朝のうちに手で進めたいとき用。
+   時間が来れば syncMorningPhase が自動で切り替える） */
+bindTap($('btnMorningGo'), function(){
+  state.today.phase = 'welcome';
+  save();
+  render();
+});
 bindTap($('btnVidStart'), startVideo);
 /* チャンネルを選び直す＝選択を消して「どの チャンネルに する？」へ戻る。
    まだ再生を始めていないときだけ押せる（始まると大画面になりこの札は隠れる）。 */
@@ -2288,6 +2413,7 @@ $('btnResetToday').addEventListener('click', function(){
     }
     state.today = null;
     nightDrawn = '';
+    morningDrawn = '';
     ensureToday();
     save();
     $('ovSettings').className = 'ov';
@@ -2317,6 +2443,7 @@ window.addEventListener('orientationchange', function(){ setTimeout(fitPlayer, 4
 /* ---------- 起動 ---------- */
 load();
 ensureToday();
+syncMorningPhase();
 render();
 setInterval(tick, 500);
 tidyUrl();
