@@ -31,13 +31,15 @@ jobs:
         run: python3 tools/update_holidays.py
 
       - name: 変更があればコミットして公開
+        # videos_pool.json も必ず一緒にコミットする。
+        # これを忘れると、ためた動画が翌朝ぜんぶ失われ、一覧が15本へ戻ってしまう。
         run: |
-          if git diff --quiet -- index.html; then
+          if git diff --quiet -- index.html videos_pool.json && [ -z "$(git status --porcelain -- videos_pool.json)" ]; then
             echo "変更なし。コミットしません。"
             exit 0
           fi
           git config user.name "okaeri-quest bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- index.html
+          git add -- index.html videos_pool.json
           git commit -m "動画・祝日の一覧を自動更新"
           git push
