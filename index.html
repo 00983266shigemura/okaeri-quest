@@ -599,7 +599,7 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 22;
+var APP_VERSION = 23;
 
 /* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
    上の APP_VERSION と隣り合っていると、版数を上げたときに
@@ -916,6 +916,31 @@ function syncMorningPhase(){
   if (ph !== 'morning' && ph !== 'morningEnd') return false;
   if (isMorningTime()) return false;
   state.today.phase = afterMorningPhase();
+  save();
+  return true;
+}
+
+/* ---------- まだ何も始めていない朝は、おはようクエストへ戻す ----------
+   「きょう」の記録は、その日の途中で版が上がっても作り直さない（進めたチェックを消さないため）。
+   そのため、朝クエストを増やした版へ上がっても、その日はもう朝クエストが出ないままになる
+   （2026-08-29の実害＝休日の朝クエストを足した当日、すでに開いていた端末に出なかった）。
+   まだ1つもチェックしていない＝失うものが無いときだけ、朝クエストへ戻す。
+   1つでもチェックしていたら戻さない＝進んだものを巻き戻さないため。 */
+function noneDone(list){
+  var i;
+  if (!list) return true;
+  for (i = 0; i < list.length; i++) { if (list[i]) return false; }
+  return true;
+}
+function backToMorningIfIdle(){
+  var t = state.today;
+  if (!isMorningTime()) return false;
+  if (t.phase !== 'welcome' && t.phase !== 'main') return false;
+  if (morningTaskList().length === 0) return false;
+  if (t.chStart) return false;
+  if (!noneDone(t.doneMorning)) return false;
+  if (!noneDone(t.doneMain) || !noneDone(t.doneMain2) || !noneDone(t.doneAfter)) return false;
+  t.phase = 'morning';
   save();
   return true;
 }
@@ -2107,6 +2132,8 @@ function tick(){
   if (ensureToday()) { render(); return; }
   /* 朝の時間帯が終わったら おかえりクエストへ切り替える */
   if (syncMorningPhase()) { render(); return; }
+  /* 逆に、まだ何も始めていない朝なら おはようクエストへ戻す（版を上げた当日の取りこぼし対策） */
+  if (backToMorningIfIdle()) { render(); return; }
   var ph = state.today.phase;
   if (ph === 'main' || ph === 'main2' || ph === 'after') updateLimitBars();
   if ((ph === 'video1' || ph === 'video2') && state.today.endAt) {
@@ -2473,6 +2500,7 @@ window.addEventListener('orientationchange', function(){ setTimeout(fitPlayer, 4
 load();
 ensureToday();
 syncMorningPhase();
+backToMorningIfIdle();
 render();
 setInterval(tick, 500);
 tidyUrl();
