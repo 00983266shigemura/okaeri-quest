@@ -599,7 +599,7 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 23;
+var APP_VERSION = 24;
 
 /* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
    上の APP_VERSION と隣り合っていると、版数を上げたときに
@@ -2064,18 +2064,25 @@ function startIndexForToday(n, kind){
   var off = (kind === 2) ? Math.floor(n / 2) : 0;   /* 2つの枠が同じ位置に来ないようずらす */
   return ((days + off) % n + n) % n;
 }
+/* スタートを押したときも、いちどページを読み直してから枠（iframe）を作る。
+   理由＝しげの実測「同じ動画でも、単独では再生されないのに、つぎ・まえで行き来すると
+   再生されることがある」。「つぎ・まえ・えらぶ」は gotoIndex を通り、必ず読み直しを
+   経てから枠を作っている。スタートだけが読み直しを経ずに、長く開いたままの画面の上へ
+   枠を差し込む唯一の経路だった＝入り口が2本あり、片方だけ実績が無かった。
+   ここを gotoIndex と同じ形へ寄せて入り口を1本にする（実績のある側へ揃える）。
+   読み直したあとは renderVideo が「endAt があるか」で再生画面だと判断し、
+   そこで mountPlayer を呼ぶ＝新しい目印は要らない。
+   なお、これは成功しやすくするための変更であって、間欠再生が直るとは言えない。 */
 function startVideo(){
   var c = videoConf();
   state.vidSkips = 0;              /* 今日の再生のはじまり＝飛ばした数を0に戻す */
   vidBaked = bakedForKind(c.kind);
   state.today.vidCur = startIndexForToday(
     (vidBaked && vidBaked.items) ? vidBaked.items.length : 0, c.kind);
+  /* 終わり時刻は絶対時刻なので、読み直しに数秒かかっても残り時間は正しく減る */
   state.today.endAt = Date.now() + Math.round(c.minutes * 60000);
   save();
-  $('vidTitle').textContent = c.title;
-  $('vidStartWrap').style.display = 'none';
-  /* スタートのタップ直後なので、そのままiframeを作れば再生が始まる */
-  mountPlayer(c);
+  location.reload();
 }
 function endVideo(byTimer){
   var c = videoConf();
