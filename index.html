@@ -56,6 +56,21 @@ button { font-family:inherit; }
 .card .c-sub { font-size:13px; font-weight:bold; color:#CC79A7; margin-top:4px; }
 /* 札の意味を補う説明（ごほうびの案内ではないので、目立たせない） */
 .card .c-sub.plain { color:#777; font-weight:normal; }
+/* 中がさらに分かれる札（おきがえ→せいふく・くつした）。
+   札を押すと下に小さなボタンが出る。ぜんぶ押すと札が できたになる。
+   色だけに頼らず、できたものには💮と枠の形の変化を付ける。 */
+.card .c-parts { display:none; margin-top:8px; }
+.card .c-parts.on { display:block; }
+.card.done .c-parts { display:none; }
+.partBtn {
+  display:block; width:100%; -webkit-box-sizing:border-box; box-sizing:border-box;
+  margin-top:8px; border:3px solid #0072B2; border-radius:16px; background:#fff;
+  padding:10px 6px; font-size:18px; font-weight:bold; color:#0072B2; cursor:pointer;
+}
+.partBtn.done { border-color:#E69F00; background:#FFF6DC; color:#8a6d00; }
+.partBtn.press { -webkit-transform:scale(0.94); transform:scale(0.94); }
+.partBtn .p-emoji { font-size:26px; vertical-align:middle; margin-right:6px; }
+.partBtn .p-text { vertical-align:middle; }
 .card.done { border-color:#E69F00; background:#FFF6DC; box-shadow:0 3px 0 rgba(230,159,0,0.35); }
 .card.done .c-text { color:#8a6d00; }
 .card .c-stamp {
@@ -599,7 +614,7 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 24;
+var APP_VERSION = 25;
 
 /* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
    上の APP_VERSION と隣り合っていると、版数を上げたときに
@@ -628,6 +643,12 @@ var DEFAULT_SETTINGS = {
   morningTasks: [
     {e:'💦', t:'かおを あらう'},
     {e:'😁', t:'はを みがく'},
+    /* 中がさらに分かれる札。押すと parts のボタンが出て、ぜんぶ押すと この札が できたになる。
+       分けたいものを足す・へらすときは、この parts を書き替えるだけでよい。 */
+    {e:'👔', t:'おきがえ', parts:[
+      {e:'👕', t:'せいふく'},
+      {e:'👣', t:'くつした'}
+    ]},
     {e:'🍴🍵', t:'カトラリー・すいとうを いれる'},
     {e:'✏️', t:'れんらくちょうを かく', sub:'パパ・ママ'},
     {e:'🎒', t:'わすれもの ないか チェック'},
@@ -687,8 +708,12 @@ var DEFAULT_SETTINGS = {
   /* どの枠でどのチャンネルを出すかは、下の VIDEO_SOURCES で決める（PC側で管理）。
      子どもは「どのチャンネルにする？」の画面で、その枠のチャンネルから選ぶ。 */
   mode: 'embed',
-  stampGoal: 10,
-  rewards: ['カブトムシロボ']
+  /* スタンプが この数だけ たまったら、下の reward を うけとる（うけとるとスタンプは0にもどる）。
+     つぎのごほうびを変えるときは、この2つを書き替えるだけでよい。
+     ごほうびの名前を「何回目か」で選ぶ表にはしない＝端末が何回目かはPCから見えないため、
+     ここに書いた名前が いつでも つぎのごほうびになる（2026-09-08しげ指示＝15個で ヘンシントカゲ）。 */
+  stampGoal: 15,
+  reward: 'ヘンシントカゲ'
 };
 
 /* ---------- ならいごとの もちもの 確認（「あしたの じゅんび」の札） ----------
@@ -1006,6 +1031,7 @@ function newToday(t){
   return {
     date: t, phase: startPhase(r),
     doneMorning: [], doneMain: [], doneMain2: [], doneAfter: [],
+    parts: {},       /* 中が分かれる札（おきがえ）の、どこまで押したか */
     finishMin: null,
     endAt: null,
     rest: r,
@@ -1033,6 +1059,8 @@ function ensureToday(){
   /* v20までの「きょう」にはおはようクエストの入れ物が無いので、ここで足す
      （作り直さない＝その日にチェック済みのクエストを消さないため） */
   if (!state.today.doneMorning) { state.today.doneMorning = []; save(); }
+  /* v24までの「きょう」には、中が分かれる札の入れ物が無いので、ここで足す */
+  if (!state.today.parts) { state.today.parts = {}; save(); }
   return false;
 }
 
@@ -1593,6 +1621,76 @@ function askConfirm(msg, yesLabel, noLabel, cb){
   $('ovConfirm').className = 'ov on';
 }
 
+/* ---------- 中がさらに分かれる札（おきがえ→せいふく・くつした） ----------
+   どこまで押したかは state.today.parts に持つ。覚えるときの名前は「札の文字」にする
+   ＝札の並びを変えても、どれの記録かがずれない（番号で覚えると入れ替えでずれる）。
+   ひらいている・とじているは、その画面のあいだだけ覚える（保存しない）。 */
+var partsOpen = {};
+function partsKey(kind, task){ return kind + ':' + task.t; }
+function partsDone(kind, task){
+  var k = partsKey(kind, task);
+  if (!state.today.parts) state.today.parts = {};
+  if (!state.today.parts[k]) state.today.parts[k] = [];
+  return state.today.parts[k];
+}
+function partsCount(kind, task){
+  var d = partsDone(kind, task), i, n = 0;
+  for (i = 0; i < task.parts.length; i++) if (d[i]) n++;
+  return n;
+}
+function partsAreOpen(kind, task){
+  var k = partsKey(kind, task);
+  if (partsOpen[k] !== undefined) return !!partsOpen[k];
+  /* いちどでも押していれば、ひらいた形で出す＝途中まで進んだことが見えるように */
+  return partsCount(kind, task) > 0;
+}
+/* 中のボタンを押したとき、外側の札まで押されたことにならないよう、
+   ここで合図を止める（古いSafariでも効く形にする） */
+function stopBubble(el){
+  var names = ['touchstart', 'touchmove', 'touchend', 'click'], i;
+  for (i = 0; i < names.length; i++) {
+    el.addEventListener(names[i], function(e){ if (e.stopPropagation) e.stopPropagation(); }, false);
+  }
+}
+function buildPartsRow(kind, idx, task, card){
+  var row = document.createElement('div'), d = partsDone(kind, task), j;
+  row.className = 'c-parts' + (partsAreOpen(kind, task) ? ' on' : '');
+  for (j = 0; j < task.parts.length; j++) {
+    (function(jdx){
+      var b = document.createElement('div'), em, tx;
+      b.className = 'partBtn' + (d[jdx] ? ' done' : '');
+      em = document.createElement('span'); em.className = 'p-emoji';
+      em.textContent = d[jdx] ? '💮' : task.parts[jdx].e;
+      tx = document.createElement('span'); tx.className = 'p-text';
+      tx.textContent = task.parts[jdx].t;
+      b.appendChild(em); b.appendChild(tx);
+      stopBubble(b);
+      bindTap(b, function(){ onPartTap(kind, idx, task, jdx, b, card); });
+      row.appendChild(b);
+    })(j);
+  }
+  return row;
+}
+function onPartTap(kind, idx, task, j, btn, card){
+  var d = partsDone(kind, task), tasks = tasksOf(kind), done = doneOf(kind);
+  if (d[j]) {
+    askConfirm('「' + task.parts[j].t + '」を とりけす？', 'とりけす', 'やめる', function(yes){
+      if (yes) { d[j] = false; sndUndo(); save(); render(); }
+    });
+    return;
+  }
+  d[j] = true;
+  save();
+  sndTap();
+  /* 押した手応えを消さないため、押したボタンだけをその場で変える（画面は作り直さない） */
+  btn.className = 'partBtn done';
+  btn.firstChild.textContent = '💮';
+  floatText(btn, FLOAT_WORDS[Math.floor(Math.random() * FLOAT_WORDS.length)]);
+  if (partsCount(kind, task) === task.parts.length) {
+    setTimeout(function(){ finishTask(kind, idx, card, tasks, done); }, 350);
+  }
+}
+
 /* ---------- タスクカード描画 ---------- */
 function buildCards(containerId, tasks, doneArr, kind){
   var box = $(containerId), i, card, em, tx, stamp, sub, isBath, asSento;
@@ -1619,6 +1717,9 @@ function buildCards(containerId, tasks, doneArr, kind){
       sub = document.createElement('div'); sub.className = 'c-sub plain';
       sub.textContent = tasks[i].sub;
       card.appendChild(sub);
+    }
+    if (tasks[i].parts && !doneArr[i]) {
+      card.appendChild(buildPartsRow(kind, i, tasks[i], card));
     }
     card.appendChild(stamp);
     (function(idx, el){
@@ -1654,9 +1755,19 @@ function onTaskTap(kind, idx, el){
       if (yes) {
         done[idx] = false;
         if (isBath) state.today.sento = false;
+        /* 中が分かれる札は、中の記録も いっしょに消す＝ぜんぶ押した状態のまま
+           札だけ「まだ」に戻ると、どこを押せばよいか分からなくなるため */
+        if (tasks[idx].parts) state.today.parts[partsKey(kind, tasks[idx])] = [];
         sndUndo(); save(); render();
       }
     });
+    return;
+  }
+  /* 中が分かれる札＝押しても できたにはせず、中のボタンを出す（もういちど押すと しまう） */
+  if (tasks[idx].parts) {
+    partsOpen[partsKey(kind, tasks[idx])] = !partsAreOpen(kind, tasks[idx]);
+    sndTap();
+    render();
     return;
   }
   /* ならいごとの日は「あしたの じゅんび」で もちものを確かめる。
@@ -2270,8 +2381,7 @@ function drawNight(){
 
 /* ---------- スタンプ（毎日最後まで完了で1個・たまるとスペシャルごほうび） ---------- */
 function rewardName(){
-  var r = state.settings.rewards;
-  return (r && r.length > state.rewardsGot) ? r[state.rewardsGot] : 'スペシャルごほうび';
+  return state.settings.reward || 'スペシャルごほうび';
 }
 function awardStampIfNeeded(){
   if (state.lastStampDate === state.today.date) return false;
@@ -2457,6 +2567,8 @@ $('btnToggleRest').addEventListener('click', function(){
     /* 朝の画面から切り替えたときは、朝の札も入れかわる＝チェックを消して出し直す */
     if (atMorning) {
       state.today.doneMorning = [];
+      state.today.parts = {};
+      partsOpen = {};
       state.today.phase = startPhase(state.today.rest);
     }
     save();
@@ -2475,6 +2587,7 @@ $('btnResetToday').addEventListener('click', function(){
       if (state.stamps > 0) state.stamps--;
     }
     state.today = null;
+    partsOpen = {};
     nightDrawn = '';
     morningDrawn = '';
     ensureToday();

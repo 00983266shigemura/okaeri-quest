@@ -27,6 +27,8 @@ ALLOW = {
     0x1F45F: '👟 Unicode6.0 実機OK',
     0x1F4A7: '💧 Unicode6.0 実機OK',
     0x1F455: '👕 Unicode6.0 実機OK',
+    0x1F454: '👔 Unicode6.0（同世代の他の絵文字が実機OK・v25で追加）',
+    0x1F463: '👣 Unicode6.0（同世代の他の絵文字が実機OK・v25で追加）',
     0x1F374: '🍴 Unicode6.0 実機OK',
     0x1F375: '🍵 Unicode6.0（同世代の他の絵文字が実機OK）',
     0x1F35A: '🍚 Unicode6.0 実機OK',
