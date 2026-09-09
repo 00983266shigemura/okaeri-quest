@@ -148,6 +148,13 @@ body.bigvid { background:#000; }
 body.bigvid .screen { padding:0; background:#000; overflow:hidden; }
 body.bigvid #vidStartWrap, body.bigvid #vidPickWrap, body.bigvid #vidNote,
 body.bigvid .v-title { display:none; }
+/* 観察の窓（v26）＝見切ったあとの一言と記録を、大画面の上のほうに重ねて出す。
+   ふだん（よみこみちゅう・再生中）は出さない＝子どものじゃまをしない。 */
+body.bigvid #vidNote.obs {
+  display:block; position:absolute; left:8px; right:8px; top:8px; z-index:6;
+  margin:0; padding:6px 12px; border-radius:8px;
+  background:rgba(0,0,0,0.65); color:#fff; font-size:16px; line-height:1.5;
+}
 /* チャンネルえらび（どうがタイムの入口）。大きく押しやすい札を縦に並べる。 */
 #vidPickWrap { display:none; }
 .chBtn {
@@ -614,7 +621,7 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 25;
+var APP_VERSION = 26;
 
 /* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
    上の APP_VERSION と隣り合っていると、版数を上げたときに
@@ -1298,31 +1305,38 @@ function thumbUrl(idx){
    本編は画面やタイマーも動いていて返事が遅れることがあり、6秒では
    良い動画まで失敗扱いにしてしまった（v16の教訓）。この値はPC側で変えられる。 */
 var VID_FAIL_MS = 15000;
+/* v26（2026-09-09しげ承認「C1承認」）＝見切ったあと、まくを外してYouTube側の画面を
+   そのまま見せておく時間。原因を追う材料（エラー文・ログイン要求・黒いまま）を
+   おうちのひとが読めるようにするための「観察の窓」。過ぎたら今までどおり次の動画へ移る。 */
+var VID_SHOW_MS = 30000;
 var vidMode = '';
 function setVidUI(mode){
   if (mode === vidMode) return;
   vidMode = mode;
   var cov = $('vidCover'), msg = $('covMsg');
   if (!cov) return;
-  cov.style.visibility = (mode === 'play') ? 'hidden' : 'visible';
-  cov.className = (mode === 'ready') ? 'ready'
-                : ((mode === 'fail' || mode === 'stuck') ? 'fail' : '');
+  /* まくを外すのは、再生中と、見切ってYouTube側の画面を見せているあいだ */
+  cov.style.visibility = (mode === 'play' || mode === 'fail' || mode === 'stuck') ? 'hidden' : 'visible';
+  cov.className = (mode === 'ready') ? 'ready' : '';
+  /* 一言と記録は、見切ったあと（観察の窓）だけ大画面の上に出す（大画面ではふだん隠れている） */
+  $('vidNote').className = (mode === 'fail' || mode === 'stuck') ? 'note obs' : 'note';
   if (mode === 'load') {
     msg.textContent = 'よみこみちゅう...';
   } else if (mode === 'ready') {
     msg.textContent = 'タップすると はじまるよ';
   } else if (mode === 'fail') {
-    /* この動画は「いま再生できない」。子どもに操作をさせず、こちらで次の動画へ移る
+    /* 見切り＝まくを外し、YouTubeが何を出しているかを見せる。次へ移るのは VID_SHOW_MS 後（tick）。
+       返事が遅れて届けば、この窓の中でも「タップすると はじまるよ」へ戻る。
        （2026-08-28まで「もういちど」を押させていたが、押しても呼び方が変わるだけで
-       直らないことが実測で確定したため撤去した）。 */
-    msg.textContent = 'この どうがは いま みられないみたい。つぎを さがすね';
-    $('covDiag').textContent = vidDiag();
+       直らないことが実測で確定したため撤去した） */
+    $('vidNote').textContent = 'うまく はじまらないみたい。すこし みてから つぎを さがすね。　' + vidDiag();
     logVid('fail');
+  } else if (mode === 'skip') {
+    /* 観察の窓が過ぎた＝子どもに操作をさせず、こちらで次の動画へ移る */
     giveUpAndSkip();
   } else if (mode === 'stuck') {
     /* 続けて何本も駄目だった＝これ以上は自動で進まない。おとなに気づいてもらう。 */
-    msg.textContent = 'ごめんね、いま どうがが みられないみたい。おうちのひとを よんでね';
-    $('covDiag').textContent = vidDiag();
+    $('vidNote').textContent = 'ごめんね、いま どうがが みられないみたい。おうちのひとを よんでね。　' + vidDiag();
   }
 }
 /* うまくいかなかったときだけ、おうちのひとが原因を追えるように状態を出す。
@@ -1333,7 +1347,7 @@ function vidDiag(){
      中のプレーヤーが動いていない。「未」なら、そもそもページが届いていない。
      この2つは原因がまったく違うので、必ず区別できるようにしておく。 */
   return 'わくよみこみ=' + (frameLoaded ? ('済' + Math.round(frameLoadMs / 1000) + 'びょう') : '未') +
-    ' / へんじ=' + (ytLive ? 'あり' : 'なし') +
+    ' / へんじ=' + (ytLive ? ('あり ' + Math.round(ytFirstMs / 1000) + 'びょう') : 'なし') +
     ' / じょうたい=' + ytState +
     ' / けいか=' + Math.round((Date.now() - mountAt) / 1000) + 'びょう' +
     ' / とばした=' + skipCount() +
@@ -1350,6 +1364,7 @@ function logVid(result){
     fl: frameLoaded ? 1 : 0,
     flms: frameLoadMs,
     live: ytLive ? 1 : 0,
+    hm: ytFirstMs,   /* 返事が来るまでの時間（ミリ秒・来ていなければ0） */
     st: ytState,
     ms: Date.now() - mountAt,
     id: it ? it.id : ''
@@ -1431,6 +1446,7 @@ function giveUpAndSkip(){
 var ytLive = false;    /* プレーヤーからの返事を一度でも受け取ったか */
 var ytPlayed = false;  /* 一度でも再生が始まったか */
 var ytDur = 0, ytCur = 0, ytState = -2, mountAt = 0, seekFrac = null;
+var ytFirstMs = 0;     /* 枠を置いてから、最初の返事が来るまでの時間（記録用・v26） */
 /* 枠（iframe）そのものが読み込めたか。中身は別サイトなので読めないが、
    読み込みが終わった合図（onload）だけは受け取れる。
    これが「済」なのに返事が無い＝ページは届いたが中のプレーヤーが動いていない、と分かる。 */
@@ -1488,7 +1504,7 @@ window.addEventListener('message', function(ev){
   var d;
   try { d = JSON.parse(ev.data); } catch(e){ return; }
   if (!d || !d.event) return;
-  ytLive = true;
+  if (!ytLive) { ytLive = true; ytFirstMs = Date.now() - mountAt; }
   if (d.event === 'onReady') ytCaptionsOff();
   if (d.info) {
     if (typeof d.info.duration === 'number') ytDur = d.info.duration;
@@ -2077,6 +2093,7 @@ function mountPlayer(c){
   $('vidCtrl').style.display = (vidBaked && vidBaked.items.length) ? '' : 'none';
   while (box.firstChild) box.removeChild(box.firstChild);
   ytLive = false; ytPlayed = false; ytDur = 0; ytCur = 0; ytState = -2; seekFrac = null;
+  ytFirstMs = 0;
   frameLoaded = false; frameLoadMs = 0;
   mountAt = Date.now();
   updateSeekUI();
@@ -2269,6 +2286,8 @@ function tick(){
       /* 一度でも再生が始まったら、以後まくは出さない（途中で止めたときに画面を覆わない） */
       if (ytPlayed) setVidUI('play');
       else if (ytLive) setVidUI('ready');
+      /* 見切り（15秒）→ 観察の窓（30秒・まくを外して見せる）→ 次の動画へ。上限に達していれば止まる */
+      else if (el > VID_FAIL_MS + VID_SHOW_MS) setVidUI(skipCount() >= maxSkips() ? 'stuck' : 'skip');
       else if (el > VID_FAIL_MS) setVidUI(skipCount() >= maxSkips() ? 'stuck' : 'fail');
       else setVidUI('load');
       updateSeekUI();
@@ -2452,7 +2471,7 @@ function openSettings(){
     v = vl[j];
     vlines.push(v.t + '　' + (v.r === 'ok' ? '再生できた' : '始まらなかった') +
       '　枠読込=' + (v.fl ? ('済' + Math.round((v.flms || 0) / 1000) + '秒') : '未') +
-      '　返事=' + (v.live ? 'あり' : 'なし') +
+      '　返事=' + (v.live ? ('あり' + (v.hm ? (Math.round(v.hm / 1000) + '秒') : '')) : 'なし') +
       '　状態=' + v.st +
       '　' + Math.round(v.ms / 1000) + '秒' +
       (v.id ? ('　' + v.id) : ''));
