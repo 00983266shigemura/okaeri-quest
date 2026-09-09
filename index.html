@@ -621,7 +621,7 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 26;
+var APP_VERSION = 27;
 
 /* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
    上の APP_VERSION と隣り合っていると、版数を上げたときに
@@ -1307,8 +1307,10 @@ function thumbUrl(idx){
 var VID_FAIL_MS = 15000;
 /* v26（2026-09-09しげ承認「C1承認」）＝見切ったあと、まくを外してYouTube側の画面を
    そのまま見せておく時間。原因を追う材料（エラー文・ログイン要求・黒いまま）を
-   おうちのひとが読めるようにするための「観察の窓」。過ぎたら今までどおり次の動画へ移る。 */
-var VID_SHOW_MS = 30000;
+   おうちのひとが読めるようにするための「観察の窓」。過ぎたら今までどおり次の動画へ移る。
+   v27（2026-09-09しげ裁定「v27で」）＝実機で「黒いまま」と観察できたため、30秒→5秒に短縮。
+   まくは外したままにする＝今後も失敗時の枠の中身が見える。 */
+var VID_SHOW_MS = 5000;
 var vidMode = '';
 function setVidUI(mode){
   if (mode === vidMode) return;
@@ -2286,7 +2288,7 @@ function tick(){
       /* 一度でも再生が始まったら、以後まくは出さない（途中で止めたときに画面を覆わない） */
       if (ytPlayed) setVidUI('play');
       else if (ytLive) setVidUI('ready');
-      /* 見切り（15秒）→ 観察の窓（30秒・まくを外して見せる）→ 次の動画へ。上限に達していれば止まる */
+      /* 見切り（15秒）→ 観察の窓（VID_SHOW_MS・まくを外して見せる）→ 次の動画へ。上限に達していれば止まる */
       else if (el > VID_FAIL_MS + VID_SHOW_MS) setVidUI(skipCount() >= maxSkips() ? 'stuck' : 'skip');
       else if (el > VID_FAIL_MS) setVidUI(skipCount() >= maxSkips() ? 'stuck' : 'fail');
       else setVidUI('load');
