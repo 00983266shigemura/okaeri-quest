@@ -289,6 +289,30 @@ body.bigvid .v-seek {
 .stSlot.got { border:3px solid #E69F00; background:#FFF6DC; color:#3a3a3a; }
 .stSlot.pop { -webkit-animation:pop 0.5s ease-out; animation:pop 0.5s ease-out; }
 
+/* むしずかん（あつめた虫はカラー・まだの虫は黒いシルエット）。
+   色だけに頼らない＝枠の線（点線／実線）と名前の文字でも「あつめた／まだ」が分かる。 */
+#scrZukan .zkMsg { text-align:center; font-size:20px; line-height:1.7; margin:2px 0 10px; }
+#scrZukan .zkMsg .sp { color:#0072B2; font-weight:bold; }
+.zkGrid { max-width:740px; margin:0 auto; text-align:center; }
+.zkSlot {
+  display:inline-block; width:158px; margin:5px; padding:6px 4px 6px;
+  border:3px dashed #ccc; border-radius:16px; background:#fafafa; vertical-align:top;
+}
+.zkSlot img { display:block; width:120px; height:120px; margin:0 auto; }
+.zkSlot .zkName { font-size:14px; line-height:1.35; color:#8a8a8a; margin-top:2px; min-height:36px; }
+.zkSlot.got { border:3px solid #E69F00; background:#FFF6DC; }
+.zkSlot.got .zkName { color:#3a3a3a; font-weight:bold; }
+/* ぜんぶ そろった日から、枠の色が変わって「かんせいした ずかん」になる */
+.zkSlot.got.all { border-color:#0072B2; background:#EAF3FA; }
+/* 新しい虫の枠だけ、ふくらんで戻る。すでにシルエットが見えている枠なので scale(0) から始めない
+   （スタンプの pop は小さな丸のための動きで、大きな枠だと一度消えたように見える） */
+@-webkit-keyframes zkpop { 0%{-webkit-transform:scale(1);} 40%{-webkit-transform:scale(1.22);} 70%{-webkit-transform:scale(0.96);} 100%{-webkit-transform:scale(1);} }
+@keyframes zkpop { 0%{transform:scale(1);} 40%{transform:scale(1.22);} 70%{transform:scale(0.96);} 100%{transform:scale(1);} }
+.zkSlot.pop { -webkit-animation:zkpop 0.6s ease-out; animation:zkpop 0.6s ease-out; }
+.zkSlot.press { -webkit-transform:scale(0.94); transform:scale(0.94); }
+#ovBug .bugBig { display:block; width:220px; height:220px; margin:0 auto; }
+#ovBug .bugNote { font-size:20px; line-height:1.8; margin:6px 20px 16px; }
+
 .pickGrid { text-align:center; margin-bottom:10px; }
 .pickItem { display:inline-block; width:200px; margin:8px; vertical-align:top; cursor:pointer; }
 .pickItem img {
@@ -422,6 +446,7 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
     <div class="w-title">おかえりなさい！</div>
     <div class="w-msg" id="welcomeMsg"></div>
     <button class="bigBtn orange" id="btnChallenge">チャレンジ！</button>
+    <div style="margin-top:18px"><button class="miniBtn" id="btnZukanW">むしずかん ▶</button></div>
   </div>
 </div>
 
@@ -523,7 +548,19 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
   <div class="stampMsg" id="stampMsg"></div>
   <div class="stampCard" id="stampCard"></div>
   <div class="v-center">
-    <button class="bigBtn orange" id="btnStampGo">おやすみへ ▶</button>
+    <button class="bigBtn orange" id="btnStampGo">むしずかんへ ▶</button>
+  </div>
+</div>
+
+<div class="screen" id="scrZukan">
+  <div class="hd">
+    <div class="hd-date"></div>
+    <h1 class="hd-title">むしずかん</h1>
+  </div>
+  <div class="zkMsg" id="zkMsg"></div>
+  <div class="zkGrid" id="zkGrid"></div>
+  <div class="v-center">
+    <button class="bigBtn orange" id="btnZukanGo">おやすみへ ▶</button>
   </div>
 </div>
 
@@ -533,6 +570,7 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
     <h1 id="nightTitle">きょうも さいごまで やりきりました！</h1>
     <p id="nightSub">おうちのひとと ハイタッチ！ ✋</p>
     <p style="margin-top:10px;">おやすみなさい 🌙</p>
+    <div style="margin-top:18px"><button class="miniBtn" id="btnZukanN">むしずかん ▶</button></div>
   </div>
 </div>
 
@@ -543,6 +581,15 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
     <h1 id="celebTitle"></h1>
     <div class="lines" id="celebLines"></div>
     <button class="bigBtn" id="btnCeleb"></button>
+  </div>
+</div>
+
+<div class="ov" id="ovBug">
+  <div class="ov-inner">
+    <img class="bugBig" id="bugBigImg" src="" alt="">
+    <h1 id="bugBigName"></h1>
+    <div class="bugNote" id="bugBigNote"></div>
+    <button class="bigBtn" id="btnBugClose">とじる</button>
   </div>
 </div>
 
@@ -621,7 +668,7 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 27;
+var APP_VERSION = 28;
 
 /* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
    上の APP_VERSION と隣り合っていると、版数を上げたときに
@@ -641,6 +688,42 @@ var KDI_VACATIONS = [
   ['2026-12-28','2027-01-01'],
   ['2027-03-30','2027-03-31']
 ];
+
+/* ---------- むしずかん（コレクション） ----------
+   1日さいごまでやりきると、この中から まだ持っていない虫が1匹 ずかんに入る（順番はランダム）。
+   絵は img/zukan/<id>.png（カラー）と <id>_s.png（シルエット）。
+   種類を足すときは、この表に1行足して、同じ名前の絵を2枚置くだけでよい。
+   絵の作り直しは tools/make_zukan_assets.py で行う（元絵から自動で作る）。
+   note は しげ が一次情報（図鑑・解説）で裏を取った1行。勝手に足さない。 */
+var ZUKAN = [
+  { id:'kabuto',   name:'カブトムシ',
+    note:'にほんの もりの おうさま。つのの さきが ふたつに わかれる。' },
+  { id:'nokogiri', name:'ノコギリクワガタ',
+    note:'おおあごが のこぎりみたいに ギザギザ。' },
+  { id:'miyama',   name:'ミヤマクワガタ',
+    note:'あたまに かんむりみたいな でっぱり。すずしい やまが すき。' },
+  { id:'ookuwa',   name:'オオクワガタ',
+    note:'くろくて つやつや。ながく いきる クワガタ。' },
+  { id:'kokuwa',   name:'コクワガタ',
+    note:'いちばん よく みつかる、ちいさな クワガタ。' },
+  { id:'hirata',   name:'ヒラタクワガタ',
+    note:'からだが ぺったんこ。はさむ ちからが つよい。' },
+  { id:'nijiiro',  name:'ニジイロクワガタ',
+    note:'にじの ように ひかる。オーストラリアの クワガタ。' },
+  { id:'hercules', name:'ヘラクレスオオカブト',
+    note:'せかいで いちばん ながい カブトムシ。つのは 2ほん。' },
+  { id:'caucasus', name:'コーカサスオオカブト',
+    note:'つのが 3ぼん。あたまの つのの まんなかに とっきが ある。' },
+  { id:'atlas',    name:'アトラスオオカブト',
+    note:'つのが 3ぼん。あたまの つのに とっきが ないのが アトラス。' },
+  { id:'elephas',  name:'エレファスゾウカブト',
+    note:'せかいで いちばん おもい カブトムシ。きんいろの けが はえている。' },
+  { id:'giraffa',  name:'ギラファノコギリクワガタ',
+    note:'せかいで いちばん ながい ノコギリクワガタ。' }
+];
+/* はじめから入れておく虫（進捗の下駄）。
+   まっさらなカードより、すこし進んだカードのほうが最後まで到達しやすいため。 */
+var ZUKAN_START = ['kabuto', 'nokogiri'];
 
 var DEFAULT_SETTINGS = {
   /* おはようクエスト（朝だけ。ごほうびは無し＝どうがタイムもスタンプも付かない）。
@@ -809,6 +892,11 @@ function load(){
   if (typeof state.stamps !== 'number') state.stamps = 0;
   if (typeof state.rewardsGot !== 'number') state.rewardsGot = 0;
   if (state.lastStampDate === undefined) state.lastStampDate = '';
+  /* むしずかん。はじめて開いた端末には、下駄として2匹を入れておく。
+     虫の日付は lastStampDate とは別に持つ＝設定画面の「きょうを やりなおす」や
+     「スタンプを全部消す」がスタンプの日付を消しても、虫が同じ日に何匹も入らないようにするため。 */
+  if (!state.zukan) { state.zukan = ZUKAN_START.slice(0); save(); }
+  if (state.lastBugDate === undefined) state.lastBugDate = '';
   /* v16が残した「出さない動画」の記録を消す（v17で仕組みごと撤去済み。この行が復旧の本体） */
   if (state.vidBad !== undefined) { delete state.vidBad; save(); }
   if (state.configVersion !== APP_VERSION) {
@@ -1044,7 +1132,9 @@ function newToday(t){
     rest: r,
     sento: false,
     chStart: null,   /* チャレンジを始めた時刻 */
-    chWin: null      /* 10ぷん以内に クエスト①を終えたか */
+    chWin: null,     /* 10ぷん以内に クエスト①を終えたか */
+    newBug: null,    /* きょう ずかんに入った虫の id（演出のため） */
+    bugShown: false  /* その演出を見せ終わったか（同じ日に2回出さない） */
   };
 }
 function ensureToday(){
@@ -1068,6 +1158,9 @@ function ensureToday(){
   if (!state.today.doneMorning) { state.today.doneMorning = []; save(); }
   /* v24までの「きょう」には、中が分かれる札の入れ物が無いので、ここで足す */
   if (!state.today.parts) { state.today.parts = {}; save(); }
+  /* v27までの「きょう」には、むしずかんの入れ物が無いので、ここで足す */
+  if (state.today.newBug === undefined) { state.today.newBug = null; save(); }
+  if (state.today.bugShown === undefined) { state.today.bugShown = false; save(); }
   return false;
 }
 
@@ -1141,6 +1234,9 @@ function sndSpecial(){
   noiseBurst(0.36, 0.3, 0.14);
   sparkle(0.6);
 }
+/* むしずかんに1匹ふえた合図。スタンプより軽く、スペシャルごほうびより ずっと軽くする
+   （いちばん派手なのは スペシャルごほうび のまま＝ごほうびの重みの順を守る） */
+function sndBug(){ tone(784,0,0.14,0.16); tone(1046,0.12,0.36,0.18); sparkle(0.24); }
 function sndTimeUp(){ tone(1046,0,0.35,0.18); tone(784,0.28,0.35,0.18); tone(523,0.56,0.7,0.18); }
 function sndNight(){
   tone(523,0,0.6,0.13,'sine',0.05); tone(392,0.4,0.7,0.13,'sine',0.05); tone(330,0.85,1.3,0.13,'sine',0.05);
@@ -1585,7 +1681,7 @@ function fmtHM(min){
 
 /* ---------- 画面切替 ---------- */
 function showScreen(id){
-  var ids = ['scrMorning','scrMorningEnd','scrWelcome','scrMain','scrMain2','scrVideo','scrAfter','scrStamp','scrNight'], i;
+  var ids = ['scrMorning','scrMorningEnd','scrWelcome','scrMain','scrMain2','scrVideo','scrAfter','scrStamp','scrZukan','scrNight'], i;
   if (id !== 'scrVideo') setBigVid(false);
   /* 下にしめきりバーが出る画面は、札が隠れないよう余白を足す */
   var withBar = { scrMain: 1, scrMain2: 1, scrAfter: 1 };
@@ -1600,6 +1696,7 @@ function showScreen(id){
   $('limit3').style.display = (id === 'scrAfter') ? 'block' : 'none';
 }
 function hideOverlays(){
+  $('ovBug').className = 'ov';
   $('ovCeleb').className = 'ov';
   $('ovConfirm').className = 'ov';
   $('ovQuiz').className = 'ov';
@@ -2368,8 +2465,33 @@ function render(){
   } else if (ph === 'stamp') {
     showScreen('scrStamp');
     var isNew = awardStampIfNeeded();
+    /* きょうの虫は、スタンプの画面に入った時点で決める（見せるのは次のずかんの画面） */
+    if (!state.today.newBug) { state.today.newBug = awardBugIfNeeded(); save(); }
     buildStampCard(isNew);
     if (isNew) sndSmallFanfare();
+  } else if (ph === 'zukan') {
+    showScreen('scrZukan');
+    zukanPeek = false;
+    var rid = null;
+    if (state.today.newBug && !state.today.bugShown) {
+      rid = state.today.newBug;
+      state.today.bugShown = true;
+      save();
+    }
+    /* 新しい虫は、いったんシルエットのまま出してから、少し待ってカラーへめくる
+       （集める楽しみの中心＝「何が出るか」の一瞬をつくる） */
+    if (rid) {
+      buildZukan(null, rid);
+      setTimeout(function(){
+        buildZukan(rid, null);
+        confetti();
+        sndBug();
+      }, 700);
+    } else {
+      buildZukan(null, null);
+    }
+    $('btnZukanGo').textContent =
+      (state.stamps >= state.settings.stampGoal) ? 'ごほうびを うけとる ▶' : 'おやすみへ ▶';
   } else if (ph === 'night') {
     showScreen('scrNight');
     drawNight();
@@ -2438,7 +2560,109 @@ function buildStampCard(isNew){
   }
   m.appendChild(d1);
   m.appendChild(d2);
-  $('btnStampGo').textContent = (state.stamps >= goal) ? 'ごほうびを うけとる ▶' : 'おやすみへ ▶';
+  /* スタンプの次は かならず むしずかん。ごほうびを受け取るのは そのあと（3-2の順番） */
+  $('btnStampGo').textContent = 'むしずかんへ ▶';
+}
+
+/* ---------- むしずかん ----------
+   1日1匹。日付は state.lastBugDate で独立に守る（スタンプの日付には相乗りしない）。
+   理由＝設定画面の「きょうを やりなおす」「スタンプを全部消す」はスタンプの日付を空にするため、
+   相乗りすると同じ日に2匹目・3匹目が入ってしまう。 */
+function hasBug(id){
+  var z = state.zukan || [], i;
+  for (i = 0; i < z.length; i++) { if (z[i] === id) return true; }
+  return false;
+}
+function zukanCount(){
+  var n = 0, i;
+  for (i = 0; i < ZUKAN.length; i++) { if (hasBug(ZUKAN[i].id)) n++; }
+  return n;
+}
+function zukanDone(){ return zukanCount() >= ZUKAN.length; }
+/* 絵のURL。版数を付けるのは、絵を直したときにiPadが古い絵を出し続けないようにするため
+   （自動更新の仕組みは index.html しか取り直さない）。 */
+function zukanSrc(id, got){
+  return 'img/zukan/' + id + (got ? '' : '_s') + '.png?v=' + APP_VERSION;
+}
+function awardBugIfNeeded(){
+  if (state.lastBugDate === state.today.date) return null;   /* きょうは もう渡した */
+  var rest = [], i;
+  for (i = 0; i < ZUKAN.length; i++) {
+    if (!hasBug(ZUKAN[i].id)) rest.push(ZUKAN[i].id);
+  }
+  if (!rest.length) return null;                             /* ぜんぶ そろっている */
+  state.lastBugDate = state.today.date;
+  var pick = rest[Math.floor(Math.random() * rest.length)];
+  state.zukan.push(pick);
+  save();
+  return pick;
+}
+function bugByIdx(i){ return ZUKAN[i]; }
+function onZukanTap(i){
+  var b = bugByIdx(i), got = hasBug(b.id);
+  $('bugBigImg').src = zukanSrc(b.id, got);
+  $('bugBigName').textContent = got ? b.name : '？？？';
+  $('bugBigNote').textContent = got ? b.note : 'まだ ひみつ！ あつめると なまえが わかるよ。';
+  if (got) sndTap(); else sndUndo();
+  $('ovBug').className = 'ov on';
+}
+/* revealId＝きょう新しく入った虫。その枠だけ ふくらむ演出を付ける。
+   holdId＝もう持っているが「まだシルエットのまま見せておく」虫（めくる前の一瞬）。 */
+function buildZukan(revealId, holdId){
+  var box = $('zkGrid'), all = zukanDone() && !holdId, i, slot, img, nm, got, cls;
+  while (box.firstChild) box.removeChild(box.firstChild);
+  for (i = 0; i < ZUKAN.length; i++) {
+    got = hasBug(ZUKAN[i].id) && ZUKAN[i].id !== holdId;
+    cls = 'zkSlot';
+    if (got) cls += ' got';
+    if (got && all) cls += ' all';
+    if (revealId && ZUKAN[i].id === revealId) cls += ' pop';
+    slot = document.createElement('div');
+    slot.className = cls;
+    img = document.createElement('img');
+    img.src = zukanSrc(ZUKAN[i].id, got);
+    img.setAttribute('alt', '');
+    /* 絵が読めなかった日でも、こわれた画像の印を出さない（電波が悪い日の見た目を守る） */
+    img.onerror = (function(el){ return function(){ el.style.display = 'none'; }; })(img);
+    nm = document.createElement('div');
+    nm.className = 'zkName';
+    nm.textContent = got ? ZUKAN[i].name : '？？？';
+    slot.appendChild(img);
+    slot.appendChild(nm);
+    bindTap(slot, (function(idx){ return function(){ onZukanTap(idx); }; })(i));
+    box.appendChild(slot);
+  }
+  var m = $('zkMsg'), d1, d2, n = zukanCount(), b = null, j;
+  while (m.firstChild) m.removeChild(m.firstChild);
+  if (revealId) {
+    for (j = 0; j < ZUKAN.length; j++) { if (ZUKAN[j].id === revealId) b = ZUKAN[j]; }
+  }
+  d1 = document.createElement('div');
+  d2 = document.createElement('div');
+  d2.className = 'sp';
+  if (holdId) {
+    d1.textContent = 'あたらしい むしが きたよ！';
+    d2.textContent = 'なにかな…？';
+  } else if (all) {
+    d1.textContent = b ? ('「' + b.name + '」を みつけた！') : ('あつめた かず ' + n + '／' + ZUKAN.length);
+    d2.textContent = 'ずかん かんせい！！';
+  } else if (b) {
+    d1.textContent = '「' + b.name + '」を みつけた！';
+    d2.textContent = 'あと ' + (ZUKAN.length - n) + 'ひきで ずかん かんせい！';
+  } else {
+    d1.textContent = 'あつめた かず ' + n + '／' + ZUKAN.length;
+    d2.textContent = 'あと ' + (ZUKAN.length - n) + 'ひき！';
+  }
+  m.appendChild(d1);
+  m.appendChild(d2);
+}
+/* 「いつでも見にきた」ずかん＝クエストの進み具合は動かさずに、見て戻るだけ。 */
+var zukanPeek = false;
+function openZukanPeek(){
+  zukanPeek = true;
+  buildZukan(null, null);
+  $('btnZukanGo').textContent = 'もどる ▶';
+  showScreen('scrZukan');
 }
 
 /* ---------- 設定（表示のみ。設定値の変更はこのファイルをPCで書き換える） ---------- */
@@ -2538,6 +2762,15 @@ bindTap($('btnBack10'), function(){ seekBy(-10); });
 bindTap($('btnFwd10'), function(){ seekBy(10); });
 bindTap($('pickClose'), function(){ $('ovPick').className = 'ov'; });
 bindTap($('btnStampGo'), function(){
+  state.today.phase = 'zukan';
+  save();
+  render();
+});
+/* ずかんの画面の下のボタン。
+   「見にきただけ」のときは戻るだけ。夜の流れのときは、15こ たまっていれば
+   ここで スペシャルごほうび を渡してから おやすみへ（いちばん派手なものを最後に置く）。 */
+bindTap($('btnZukanGo'), function(){
+  if (zukanPeek) { zukanPeek = false; render(); return; }
   if (state.stamps >= state.settings.stampGoal) {
     var name = rewardName();
     state.stamps = 0;
@@ -2560,6 +2793,9 @@ bindTap($('btnStampGo'), function(){
     render();
   }
 });
+bindTap($('btnZukanW'), function(){ openZukanPeek(); });
+bindTap($('btnZukanN'), function(){ openZukanPeek(); });
+bindTap($('btnBugClose'), function(){ $('ovBug').className = 'ov'; });
 bindTap($('btnGear'), function(){ openQuiz(openSettings); });
 $('quizOk').addEventListener('click', function(){
   if (parseInt($('quizA').value, 10) === quizAnswer) {
