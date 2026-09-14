@@ -293,13 +293,14 @@ body.bigvid .v-seek {
    色だけに頼らない＝枠の線（点線／実線）と名前の文字でも「あつめた／まだ」が分かる。 */
 #scrZukan .zkMsg { text-align:center; font-size:20px; line-height:1.7; margin:2px 0 10px; }
 #scrZukan .zkMsg .sp { color:#0072B2; font-weight:bold; }
-.zkGrid { max-width:780px; margin:0 auto; text-align:center; }
+.zkGrid { max-width:740px; margin:0 auto; text-align:center; }
 .zkSlot {
-  display:inline-block; width:237px; margin:5px; padding:6px 4px 6px;
+  display:inline-block; width:158px; margin:5px; padding:6px 4px 6px;
   border:3px dashed #ccc; border-radius:16px; background:#fafafa; vertical-align:top;
 }
-/* 絵の大きさ＝v29でしげ指示により1.5倍（120→180）。枠と一覧の幅も合わせて広げた。 */
-.zkSlot img { display:block; width:180px; height:180px; margin:0 auto; }
+/* 一覧の絵＝v29で1.5倍にしたが、12枠が1画面に収まらなくなったため
+   v30でしげ指示により元の120pxへ戻した。押したときの大きな絵は1.5倍のまま。 */
+.zkSlot img { display:block; width:120px; height:120px; margin:0 auto; }
 .zkSlot .zkName { font-size:14px; line-height:1.35; color:#8a8a8a; margin-top:2px; min-height:36px; }
 .zkSlot.got { border:3px solid #E69F00; background:#FFF6DC; }
 .zkSlot.got .zkName { color:#3a3a3a; font-weight:bold; }
@@ -669,7 +670,7 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 29;
+var APP_VERSION = 30;
 
 /* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
    上の APP_VERSION と隣り合っていると、版数を上げたときに
@@ -802,7 +803,8 @@ var DEFAULT_SETTINGS = {
   holidayTasks: [
     {e:'👟', t:'くつを そろえる'},
     {e:'💧', t:'てあらい・うがい'},
-    {e:'🍚', t:'ごはんを ぜんぶ たべる', sub:'たべるとき たちあるかない'},
+    /* 平日のクエスト②と同じ2択（walk:1）。2026-09-14 しげ指示「土日も同じにする」 */
+    {e:'🍚', t:'ごはんを ぜんぶ たべる', sub:'たべるとき たちあるかない', walk:1},
     {e:'🛁', t:'おふろに はいる', bath:1},
     {e:'📦', t:'おもちゃ・ほんを ぜんぶ かたづける'},
     {e:'✏️', t:'ワークを する'}
