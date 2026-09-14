@@ -293,12 +293,13 @@ body.bigvid .v-seek {
    色だけに頼らない＝枠の線（点線／実線）と名前の文字でも「あつめた／まだ」が分かる。 */
 #scrZukan .zkMsg { text-align:center; font-size:20px; line-height:1.7; margin:2px 0 10px; }
 #scrZukan .zkMsg .sp { color:#0072B2; font-weight:bold; }
-.zkGrid { max-width:740px; margin:0 auto; text-align:center; }
+.zkGrid { max-width:780px; margin:0 auto; text-align:center; }
 .zkSlot {
-  display:inline-block; width:158px; margin:5px; padding:6px 4px 6px;
+  display:inline-block; width:237px; margin:5px; padding:6px 4px 6px;
   border:3px dashed #ccc; border-radius:16px; background:#fafafa; vertical-align:top;
 }
-.zkSlot img { display:block; width:120px; height:120px; margin:0 auto; }
+/* 絵の大きさ＝v29でしげ指示により1.5倍（120→180）。枠と一覧の幅も合わせて広げた。 */
+.zkSlot img { display:block; width:180px; height:180px; margin:0 auto; }
 .zkSlot .zkName { font-size:14px; line-height:1.35; color:#8a8a8a; margin-top:2px; min-height:36px; }
 .zkSlot.got { border:3px solid #E69F00; background:#FFF6DC; }
 .zkSlot.got .zkName { color:#3a3a3a; font-weight:bold; }
@@ -310,7 +311,7 @@ body.bigvid .v-seek {
 @keyframes zkpop { 0%{transform:scale(1);} 40%{transform:scale(1.22);} 70%{transform:scale(0.96);} 100%{transform:scale(1);} }
 .zkSlot.pop { -webkit-animation:zkpop 0.6s ease-out; animation:zkpop 0.6s ease-out; }
 .zkSlot.press { -webkit-transform:scale(0.94); transform:scale(0.94); }
-#ovBug .bugBig { display:block; width:220px; height:220px; margin:0 auto; }
+#ovBug .bugBig { display:block; width:330px; height:330px; margin:0 auto; }
 #ovBug .bugNote { font-size:20px; line-height:1.8; margin:6px 20px 16px; }
 
 .pickGrid { text-align:center; margin-bottom:10px; }
@@ -530,7 +531,7 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
 <div class="screen" id="scrAfter">
   <div class="hd">
     <div class="hd-date"></div>
-    <h1 class="hd-title">ねるまえの おやくそく</h1>
+    <h1 class="hd-title">おやすみクエスト</h1>
     <div class="hd-progress" id="hdProgAfter"></div>
   </div>
   <div class="cards" id="afterCards"></div>
@@ -668,7 +669,7 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 28;
+var APP_VERSION = 29;
 
 /* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
    上の APP_VERSION と隣り合っていると、版数を上げたときに
@@ -742,7 +743,14 @@ var DEFAULT_SETTINGS = {
     {e:'🍴🍵', t:'カトラリー・すいとうを いれる'},
     {e:'✏️', t:'れんらくちょうを かく', sub:'パパ・ママ'},
     {e:'🎒', t:'わすれもの ないか チェック'},
-    {e:'🍚', t:'ごはんを ぜんぶ たべる'}
+    {e:'🍚', t:'ごはんを ぜんぶ たべる'},
+    /* どれか ひとつ を えらぶ札（pickOne）。ぜんぶ押す必要はなく、1つ押せば できたになる。
+       ふやす・へらすときは、この parts を書き替えるだけでよい。 */
+    {e:'🙌', t:'おてつだい', pickOne:1, parts:[
+      {e:'🚮', t:'ごみすて'},
+      {e:'🚿', t:'おふろあらい'},
+      {e:'✨', t:'ほかのこと'}
+    ]}
   ],
   /* 休日の朝（土日・祝日・園の長期休み）の札。
      園へ持っていくもの（カトラリー・すいとう／れんらくちょう／わすれものチェック）は外す。
@@ -751,7 +759,14 @@ var DEFAULT_SETTINGS = {
   morningTasksRest: [
     {e:'💦', t:'かおを あらう'},
     {e:'😁', t:'はを みがく'},
-    {e:'🍚', t:'あさごはんを ぜんぶ たべる'}
+    {e:'🍚', t:'あさごはんを ぜんぶ たべる'},
+    /* どれか ひとつ を えらぶ札（pickOne）。ぜんぶ押す必要はなく、1つ押せば できたになる。
+       ふやす・へらすときは、この parts を書き替えるだけでよい。 */
+    {e:'🙌', t:'おてつだい', pickOne:1, parts:[
+      {e:'🚮', t:'ごみすて'},
+      {e:'🚿', t:'おふろあらい'},
+      {e:'✨', t:'ほかのこと'}
+    ]}
   ],
   /* この時刻より前に開いたら おはようクエスト。過ぎたら きょうのクエストへ自動で切り替わる */
   morningUntil: '12:00',
@@ -759,14 +774,25 @@ var DEFAULT_SETTINGS = {
   mainTasks: [
     {e:'👟', t:'くつを そろえる'},
     {e:'💧', t:'てあらい・うがい'},
-    {e:'👕', t:'せんたくものを だす'},
+    /* 中がさらに分かれる札。ぜんぶ押すと この札が できたになる。 */
+    {e:'👕', t:'せんたくものを だす', parts:[
+      {e:'👔', t:'せいふく'},
+      {e:'🏃', t:'にんジャージ'},
+      {e:'🍴', t:'カトラリーぶくろ'}
+    ]},
     {e:'🍴🍵', t:'カトラリー・すいとうを だす'},
-    {e:'🎒', t:'カバンを かたづける'}
+    {e:'🎒', t:'カバンを かたづける', parts:[
+      {e:'🎒', t:'リュック'},
+      {e:'👜', t:'サブバッグ'}
+    ]}
   ],
   /* クエスト② そのあと ゆっくり やること（7:45までの めやす） */
   mainTasks2: [
-    {e:'🍚', t:'ごはんを ぜんぶ たべる', sub:'たべるとき たちあるかない'},
+    /* 押すと2択が出る札（walk:1）。どちらを選んでも「できた」になるが、
+       「たちあるいた」を選んだ日は どうがタイムが walkPenaltyMin ぶん みじかくなる。 */
+    {e:'🍚', t:'ごはんを ぜんぶ たべる', sub:'たべるとき たちあるかない', walk:1},
     {e:'🛁', t:'おふろに はいる', bath:1},
+    {e:'🎲', t:'しじまちゲーム'},
     {e:'✏️', t:'ワークを する'}
   ],
   /* チャレンジの持ち時間（ぷん）と、クエスト②の めやすの時刻 */
@@ -782,6 +808,8 @@ var DEFAULT_SETTINGS = {
     {e:'✏️', t:'ワークを する'}
   ],
   sentoBonusMin: 5,
+  /* ごはんのとき たちあるいた日に、どうがタイムから ひく ぷん（2026-09-14 しげ指示＝5） */
+  walkPenaltyMin: 5,
   afterTasks: [
     {e:'😁', t:'はを みがく'},
     {e:'💦', t:'かおを あらう'},
@@ -983,9 +1011,16 @@ function main2TaskList(){
 /* 休日は1枚の画面＝クエスト①だけで完了。平日は①→②の2枚 */
 function hasQuest2(){ return main2TaskList().length > 0; }
 /* きょうのごほうび時間（上限）。せんとうを選んだ日はボーナスがつく */
+function walkPenaltyMin(){
+  var v = state.settings.walkPenaltyMin;
+  return (typeof v === 'number') ? v : 5;
+}
 function rewardMinToday(){
   var m = state.settings.rewardMin;
   if (state.today && state.today.sento) m += (state.settings.sentoBonusMin || 5);
+  /* ごはんのとき たちあるいた日は みじかくなる（2026-09-14 しげ指示） */
+  if (state.today && state.today.walked) m -= walkPenaltyMin();
+  if (m < 0) m = 0;
   return m;
 }
 /* いま始めた場合に見られる時間。「終わりは videoEndBy」から逆算して短くする。
@@ -999,7 +1034,7 @@ function rewardMinNow(){
   return (cap < full) ? cap : full;
 }
 
-/* ---------- ねる時間の判定（ねるまえのおやくそくの🌙の札） ---------- */
+/* ---------- ねる時間の判定（おやすみクエストの しめきり） ---------- */
 function hhmmToMin(text, defH, defM){
   var s = String(text || '').split(':');
   var h = parseInt(s[0], 10), m = parseInt(s[1], 10);
@@ -1090,7 +1125,7 @@ function ch1RemainSec(){
   if (!state.today.chStart) return total;
   return total - Math.floor((Date.now() - state.today.chStart) / 1000);
 }
-/* クエスト②・ねるまえ＝時計のしめきりまでの残り */
+/* クエスト②・おやすみクエスト＝時計のしめきりまでの残り */
 function untilClockSec(limitMin){
   var d = new Date();
   return limitMin * 60 - (d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds());
@@ -1131,6 +1166,7 @@ function newToday(t){
     endAt: null,
     rest: r,
     sento: false,
+    walked: false,  /* ごはんのとき たちあるいたか（どうがタイムを みじかくする） */
     chStart: null,   /* チャレンジを始めた時刻 */
     chWin: null,     /* 10ぷん以内に クエスト①を終えたか */
     newBug: null,    /* きょう ずかんに入った虫の id（演出のため） */
@@ -1153,6 +1189,8 @@ function ensureToday(){
   /* 古い版で作られた「きょう」には休日判定が入っていないので、ここで埋める */
   if (state.today.rest === undefined) { state.today.rest = calcRestDay(); save(); }
   if (state.today.sento === undefined) { state.today.sento = false; }
+  /* v28までの「きょう」には たちあるきの入れ物が無いので、ここで足す */
+  if (state.today.walked === undefined) { state.today.walked = false; save(); }
   /* v20までの「きょう」にはおはようクエストの入れ物が無いので、ここで足す
      （作り直さない＝その日にチェック済みのクエストを消さないため） */
   if (!state.today.doneMorning) { state.today.doneMorning = []; save(); }
@@ -1801,7 +1839,8 @@ function onPartTap(kind, idx, task, j, btn, card){
   btn.className = 'partBtn done';
   btn.firstChild.textContent = '💮';
   floatText(btn, FLOAT_WORDS[Math.floor(Math.random() * FLOAT_WORDS.length)]);
-  if (partsCount(kind, task) === task.parts.length) {
+  /* pickOne の札＝どれか1つ押せば できた。ふつうの札＝ぜんぶ押したら できた。 */
+  if (partsCount(kind, task) >= (task.pickOne ? 1 : task.parts.length)) {
     setTimeout(function(){ finishTask(kind, idx, card, tasks, done); }, 350);
   }
 }
@@ -1870,6 +1909,7 @@ function onTaskTap(kind, idx, el){
       if (yes) {
         done[idx] = false;
         if (isBath) state.today.sento = false;
+        if (tasks[idx].walk) state.today.walked = false;
         /* 中が分かれる札は、中の記録も いっしょに消す＝ぜんぶ押した状態のまま
            札だけ「まだ」に戻ると、どこを押せばよいか分からなくなるため */
         if (tasks[idx].parts) state.today.parts[partsKey(kind, tasks[idx])] = [];
@@ -1895,6 +1935,16 @@ function onTaskTap(kind, idx, el){
       });
       return;
     }
+  }
+  if (tasks[idx].walk) {
+    /* ごはんの札は2択＝どちらを選んでも「できた」になる。
+       たちあるいた日は、責めずに事実として どうがタイムを みじかくする。 */
+    askConfirm('ごはんの とき どうだった？', 'たちあるかなかった',
+      'たちあるいた －' + walkPenaltyMin() + 'ふん', function(sat){
+      state.today.walked = !sat;
+      finishTask(kind, idx, el, tasks, done);
+    });
+    return;
   }
   if (isBath) {
     /* おふろの札だけは2択＝どちらを選んでも「できた」になる。せんとうはボーナスつき */
@@ -2050,10 +2100,13 @@ function celeb1Contents(){
   if (state.today.sento) {
     lines.push({ text: '♨️ せんとうボーナス ＋' + (state.settings.sentoBonusMin || 5) + 'ふん！', bold: true });
   }
+  if (state.today.walked) {
+    lines.push({ text: '🚶 たちあるいた －' + walkPenaltyMin() + 'ふん', bold: true });
+  }
   if (mins <= 0) {
     /* 終わり時刻を過ぎている＝どうがタイムは無し。責めずに次へ送る */
     lines.push({ text: 'きょうは どうがタイムの じかんが すぎちゃった' });
-    lines.push({ text: 'つぎは ねるまえの おやくそく だよ' });
+    lines.push({ text: 'つぎは おやすみクエスト だよ' });
     return {
       hanamaru: true, title: 'はなまる！', lines: lines,
       btn: 'つぎへ ▶',
@@ -2326,7 +2379,7 @@ function endVideo(byTimer){
     render();
     showCeleb({
       emoji: '⏰', title: 'どうがタイム おしまい！',
-      lines: [{ text: 'つぎは ねるまえの おやくそく だよ' }],
+      lines: [{ text: 'つぎは おやすみクエスト だよ' }],
       btn: 'つぎへ ▶',
       onBtn: function(){ hideCeleb(); }
     });
@@ -2451,7 +2504,7 @@ function render(){
     showScreen('scrAfter');
     buildCards('afterCards', state.settings.afterTasks, state.today.doneAfter, 'after');
     renderProgress('hdProgAfter', state.settings.afterTasks, state.today.doneAfter);
-    /* ねるまえのバーは、この画面に入った時点を満タンにする */
+    /* おやすみクエストのバーは、この画面に入った時点を満タンにする */
     if (!state.today.afterTotal) {
       var left = untilClockSec(bedCutoffMin());
       state.today.afterTotal = (left > 60) ? left : 60;
