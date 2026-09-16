@@ -58,6 +58,9 @@ ALLOW = {
     0x1F6BF: '🚿 Unicode6.0（DerivedAge実測・v29 おふろあらい）',
     0x1F3C3: '🏃 Unicode6.0（DerivedAge実測・v29 にんジャージ）',
     0x1F45C: '👜 Unicode6.0（DerivedAge実測・v29 サブバッグ）',
+    # v31（2026-09-16）で追加。世代はUnicode公式の DerivedAge.txt(17.0.0) で実測＝6.0。
+    # 実機での見え方は未検証（同世代の他の絵文字が実機OK）。
+    0x1F3C6: '🏆 Unicode6.0（DerivedAge実測・v31 かちのしらせ）',
     0x1F3B2: '🎲 Unicode6.0（DerivedAge実測・v29 しじまちゲーム）',
     0x1F6B6: '🚶 Unicode6.0（DerivedAge実測・v29 たちあるいた）',
     0x270B: '✋ Unicode6.0 v7から公開中',
