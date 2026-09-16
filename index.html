@@ -99,7 +99,9 @@ button { font-family:inherit; }
 .vsHead .vsCol.papa { border-bottom-color:#CC79A7; }
 .vsRow { display:-webkit-flex; display:flex; -webkit-align-items:stretch; align-items:stretch;
   -webkit-justify-content:center; justify-content:center; }
-.vsRow .card { width:46%; margin:1.4% 2%; padding:9px 8px; }
+/* 行の間の余白は px で固定する。%だと画面幅に比例して大きくなり、
+   8行の おはようクエストで はみ出しが増える（実測 268px→173px・札の大きさは不変）。 */
+.vsRow .card { width:46%; margin:8px 2%; padding:9px 8px; }
 .vsRow .card.both { width:96%; }
 .vsRow .card .c-who { font-size:12px; font-weight:bold; color:#777; line-height:1.2; }
 .vsRow .card .c-emoji { font-size:30px; line-height:1.1; display:inline-block; vertical-align:middle; }
@@ -1090,6 +1092,20 @@ function quest2ByMin(){ return hhmmToMin(state.settings.quest2By, 19, 45); }
    morningUntil より前＝朝。過ぎたら おかえりクエストへ切り替える。
    これで「朝ぜんぶ終わって画面が出たまま夕方に開いた」日も、
    「朝いちども開かなかった」日も、同じ1か所で拾える。 */
+/* ふたり共通の札（both）を、そらできているなら パパもできたに揃える。
+   普段は finishTask が揃えるのでここは何もしない。版が上がった当日だけ 出番がある。 */
+function syncBothForToday(){
+  var ks = ['morning', 'main', 'main2', 'after'], i, j, tasks, d, p, changed = false;
+  for (i = 0; i < ks.length; i++) {
+    tasks = tasksOf(ks[i]);
+    if (!tasks) continue;
+    d = doneOf(ks[i]); p = doneOfP(ks[i]);
+    for (j = 0; j < tasks.length; j++) {
+      if (tasks[j].both && d[j] && !p[j]) { p[j] = true; changed = true; }
+    }
+  }
+  if (changed) save();
+}
 function morningUntilMin(){ return hhmmToMin(state.settings.morningUntil, 12, 0); }
 function isMorningTime(){ return nowMin() < morningUntilMin(); }
 /* 朝の札は平日と休日で入れかわる。
@@ -1247,6 +1263,10 @@ function ensureToday(){
   if (!state.today.pMain2) { state.today.pMain2 = []; save(); }
   if (!state.today.pAfter) { state.today.pAfter = []; save(); }
   if (!state.today.win) { state.today.win = {}; save(); }
+  /* ふたり共通の札は、版が上がる前に そらが押していた分を パパへも写す。
+     写さないと その札は「できた」の見た目のままで パパが押せず、
+     その日は パパが そのクエストを 勝てなくなる（版を上げた当日だけの話）。 */
+  syncBothForToday();
   return false;
 }
 
@@ -2033,6 +2053,13 @@ function settleWinner(kind){
   save();
   return w;
 }
+/* とりけしで「ぜんぶ できた」でなくなったら、その人の かち も 取り消す。
+   押しまちがいで決まった かち が その日ずっと残るのを防ぐ
+   （残ると、そのクエストで 相手はもう 勝てなくなる）。 */
+function unsettleWinner(kind){
+  var w = winnerOf(kind);
+  if (w && !allDoneFor(kind, w)) { delete state.today.win[kind]; save(); }
+}
 /* かちが きまったクエストの おしらせ1行（お祝いの画面に足す） */
 function winLine(kind){
   var w = winnerOf(kind);
@@ -2065,6 +2092,7 @@ function onTaskTap(kind, idx, el, who){
         /* 中が分かれる札は、中の記録も いっしょに消す＝ぜんぶ押した状態のまま
            札だけ「まだ」に戻ると、どこを押せばよいか分からなくなるため */
         if (tasks[idx].parts) state.today.parts[partsKey(kind, tasks[idx])] = [];
+        unsettleWinner(kind);
         sndUndo(); save(); render();
       }
     });
@@ -2120,7 +2148,7 @@ function onPapaTap(kind, idx, el){
   var tasks = tasksOf(kind), p = doneOfP(kind);
   if (p[idx]) {
     askConfirm('パパの「' + tasks[idx].t + '」を とりけす？', 'とりけす', 'やめる', function(yes){
-      if (yes) { p[idx] = false; sndUndo(); save(); render(); }
+      if (yes) { p[idx] = false; unsettleWinner(kind); sndUndo(); save(); render(); }
     });
     return;
   }
@@ -3076,14 +3104,18 @@ $('btnToggleRest').addEventListener('click', function(){
   if (window.confirm('きょうのクエスト一覧を「' + to + 'パターン」に切り替えます。チェック済みのクエストはやり直しになります。いいですか？')) {
     state.today.rest = !state.today.rest;
     state.today.doneMain = [];
-    /* パパのぶんと かち負けも やり直しにする（札が 入れかわるため） */
+    /* パパのぶんと かち負けも やり直しにする（札が 入れかわるため）。
+       消すのは やり直しになるクエストの かち だけ
+       ＝もう終わったおはようクエストの かち まで消すと、
+       札はできたまま かちだけ無くなり、夜のかぞえが合わなくなる。 */
     state.today.pMain = [];
-    state.today.win = {};
+    if (state.today.win) delete state.today.win.main;
     state.today.sento = false;
     /* 朝の画面から切り替えたときは、朝の札も入れかわる＝チェックを消して出し直す */
     if (atMorning) {
       state.today.doneMorning = [];
       state.today.pMorning = [];
+      if (state.today.win) delete state.today.win.morning;
       state.today.parts = {};
       partsOpen = {};
       state.today.phase = startPhase(state.today.rest);
