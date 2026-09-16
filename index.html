@@ -22,7 +22,10 @@ button { font-family:inherit; }
 .screen {
   position:absolute; top:0; left:0; right:0; bottom:0;
   overflow-y:auto; -webkit-overflow-scrolling:touch;
-  display:none; padding:16px 14px 60px;
+  /* 下の余白は20px。しめきりバーのある画面だけ 110px へ広げる（.screen.hasBar）。
+     もとは60pxだったが、バーの無い画面では使われない余白で、
+     8枚のおはようクエストが1画面に収まらない原因の一つだった。 */
+  display:none; padding:16px 14px 20px;
 }
 .screen.hasBar { padding-bottom:110px; }
 .screen.on { display:block; }
@@ -99,11 +102,14 @@ button { font-family:inherit; }
 .vsHead .vsCol.papa { border-bottom-color:#CC79A7; }
 .vsRow { display:-webkit-flex; display:flex; -webkit-align-items:stretch; align-items:stretch;
   -webkit-justify-content:center; justify-content:center; }
-/* 行の間の余白は px で固定する。%だと画面幅に比例して大きくなり、
-   8行の おはようクエストで はみ出しが増える（実測 268px→173px・札の大きさは不変）。 */
-.vsRow .card { width:46%; margin:8px 2%; padding:9px 8px; }
+/* 行の間の余白は px で固定する。%だと画面幅に比例して大きくなる。 */
+.vsRow .card { width:46%; margin:6px 2%; padding:9px 8px; }
 .vsRow .card.both { width:96%; }
-.vsRow .card .c-who { font-size:12px; font-weight:bold; color:#777; line-height:1.2; }
+/* 名前（そら／パパ）は 絵文字の横へ寄せる。
+   たてに1本分の行が浮き、8枚のおはようクエストが1画面に収まる
+   （2026-09-16 しげ裁定「推奨で」＝案B。実測はみ出し 173px→0px）。 */
+.vsRow .card .c-who { font-size:12px; font-weight:bold; color:#777; line-height:1.2;
+  display:inline-block; vertical-align:middle; margin-right:7px; }
 .vsRow .card .c-emoji { font-size:30px; line-height:1.1; display:inline-block; vertical-align:middle; }
 .vsRow .card .c-text { font-size:17px; margin:0 0 0 7px; display:inline-block; vertical-align:middle; text-align:left; }
 .vsRow .card .c-stamp { font-size:34px; top:-14px; right:-6px; }
@@ -703,7 +709,7 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 31;
+var APP_VERSION = 32;
 
 /* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
    上の APP_VERSION と隣り合っていると、版数を上げたときに

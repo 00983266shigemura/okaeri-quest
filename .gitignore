@@ -3,4 +3,4 @@ logs/
 tools/_zukan_preview_*.png
 _test.html
 _neg_*.html
-_preview.html
+_preview*.html
