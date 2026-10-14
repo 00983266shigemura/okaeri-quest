@@ -467,8 +467,8 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
     <div class="w-title">おかえりなさい！</div>
     <div class="w-msg" id="welcomeMsg">きょうは どっち？</div>
     <div class="w-choice">
-      <button class="bigBtn orange" id="btnDayNormal">ふつうの日</button>
-      <button class="bigBtn" id="btnDayMachiko">まちこ先生の日</button>
+      <button class="bigBtn orange" id="btnDayNormal">ふつうの ひ</button>
+      <button class="bigBtn" id="btnDayMachiko">まちこせんせいの ひ</button>
     </div>
     <div style="margin-top:18px"><button class="miniBtn" id="btnZukanW">むしずかん ▶</button></div>
   </div>
@@ -500,7 +500,7 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
     <h1 class="hd-title" id="vsAskTitle"></h1>
   </div>
   <div class="w-center">
-    <div class="w-msg">パパと競争する？</div>
+    <div class="w-msg">パパと きょうそう する？</div>
     <div class="w-choice">
       <button class="bigBtn orange" id="btnVsYes">はい</button>
       <button class="bigBtn" id="btnVsNo">いいえ</button>
@@ -653,6 +653,7 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
   </div>
 </div>
 
+<!-- KANA-CHECK-OFF ここから おうちのひと用の設定画面（漢字を使ってよい） -->
 <div class="ov" id="ovSettings">
   <div class="ov-panel">
     <h2>せってい（おうちのひと用）</h2>
@@ -675,8 +676,8 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
 
     <div class="row wrap" style="text-align:left;">
       <button class="setBtn" id="btnToggleRest">きょうの クエストを 切りかえる</button>
-      <button class="setBtn" id="btnReaskVs">「パパと競争する？」を 聞き直す</button>
-      <button class="setBtn" id="btnToggleMachiko">ふつうの日 ⇄ まちこ先生の日</button>
+      <button class="setBtn" id="btnReaskVs">「パパと きょうそう する？」を 聞き直す</button>
+      <button class="setBtn" id="btnToggleMachiko">ふつうの ひ ⇄ まちこせんせいの ひ</button>
       <button class="setBtn" id="btnResetToday">きょうを やりなおす</button>
       <button class="setBtn" id="btnClearHist">きろくを 全部消す</button>
       <button class="setBtn" id="btnClearStamp">スタンプを 全部消す</button>
@@ -687,6 +688,7 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
   </div>
 </div>
 
+<!-- KANA-CHECK-ON ここまで -->
 <div id="confetti"></div>
 
 <script>
@@ -700,7 +702,7 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 34;
+var APP_VERSION = 35;
 
 /* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
    上の APP_VERSION と隣り合っていると、版数を上げたときに
@@ -1502,10 +1504,11 @@ function setVidUI(mode){
    ふだんの画面には出さない（子どものじゃまをしない）。 */
 function vidDiag(){
   var f = vidFrame();
-  /* 「わくよみこみ」が肝＝ここが「済」なら、YouTubeのページ自体は届いているのに
-     中のプレーヤーが動いていない。「未」なら、そもそもページが届いていない。
+  /* 「わくよみこみ」が肝＝ここが「すみ」なら、YouTubeのページ自体は届いているのに
+     中のプレーヤーが動いていない。「まだ」なら、そもそもページが届いていない。
+     子どもの画面に出るので、漢字を使わない（tools/check_kana.py が見張る）。
      この2つは原因がまったく違うので、必ず区別できるようにしておく。 */
-  return 'わくよみこみ=' + (frameLoaded ? ('済' + Math.round(frameLoadMs / 1000) + 'びょう') : '未') +
+  return 'わくよみこみ=' + (frameLoaded ? ('すみ ' + Math.round(frameLoadMs / 1000) + 'びょう') : 'まだ') +
     ' / へんじ=' + (ytLive ? ('あり ' + Math.round(ytFirstMs / 1000) + 'びょう') : 'なし') +
     ' / じょうたい=' + ytState +
     ' / けいか=' + Math.round((Date.now() - mountAt) / 1000) + 'びょう' +
@@ -2490,7 +2493,7 @@ function mountPlayer(c){
     box.appendChild(a);
     $('vidNote').textContent = 'みおわったら この がめんに もどってきてね。';
     if (state.settings.mode === 'embed' && !p) {
-      $('vidNote').textContent += '（おうちのひとへ: 設定画面で動画URLを登録するとアプリ内再生になります）';
+      $('vidNote').textContent += '（おうちのひとへ: せっていで どうがの URLを とうろくすると アプリの なかで みられます）';
     }
   }
 }
@@ -2911,6 +2914,7 @@ function openZukanPeek(){
   showScreen('scrZukan');
 }
 
+/* KANA-CHECK-OFF ここから おうちのひと用の設定画面（漢字を使ってよい） */
 /* ---------- 設定（表示のみ。設定値の変更はこのファイルをPCで書き換える） ---------- */
 /* おうちのひと向けのヒント。ほめ方の研究にもとづく短い1行を日替わりで出す。 */
 var PRAISE_HINTS = [
@@ -2925,8 +2929,8 @@ var PRAISE_HINTS = [
 function openSettings(){
   $('praiseHint').textContent = dayPick(PRAISE_HINTS);
   var chTxt = '';
-  if (!state.today.rest && state.today.machiko === true) chTxt = 'まちこ先生の日（クエスト②の ワーク・ごはんは なし）。 ';
-  else if (!state.today.rest && state.today.machiko === false) chTxt = 'ふつうの日。 ';
+  if (!state.today.rest && state.today.machiko === true) chTxt = 'まちこせんせいの ひ（クエスト②の ワーク・ごはんは なし）。 ';
+  else if (!state.today.rest && state.today.machiko === false) chTxt = 'ふつうの ひ。 ';
   $('dayInfo').textContent = chTxt + (state.today.rest ?
       '休日パターン（土日・祝日・園の長期休み）で表示中。' :
       '平日パターンで表示中。') +
@@ -2960,6 +2964,7 @@ function openSettings(){
   hb.style.whiteSpace = 'pre-line';
   $('ovSettings').className = 'ov on';
 }
+/* KANA-CHECK-ON ここまで */
 function openQuiz(after){
   var a = 2 + Math.floor(Math.random() * 8), b = 2 + Math.floor(Math.random() * 8);
   quizAnswer = a + b;
@@ -3055,6 +3060,7 @@ $('quizOk').addEventListener('click', function(){
   }
 }, false);
 $('quizCancel').addEventListener('click', function(){ $('ovQuiz').className = 'ov'; }, false);
+/* KANA-CHECK-OFF ここから 設定画面のボタン（おうちのひと用） */
 $('btnCloseSet').addEventListener('click', function(){ $('ovSettings').className = 'ov'; }, false);
 $('btnToggleRest').addEventListener('click', function(){
   /* 休日⇄平日の手動切替（園の急な休みなど、表に無い日のため）。
@@ -3111,12 +3117,12 @@ $('btnReaskVs').addEventListener('click', function(){
    （押したあとに札の並びが変わると、できた印の位置が ずれるため）。 */
 $('btnToggleMachiko').addEventListener('click', function(){
   var t = state.today;
-  if (t.rest) { window.alert('休日パターンには ふつうの日／まちこ先生の日 の区別は ありません。'); return; }
+  if (t.rest) { window.alert('休日パターンには ふつうの ひ／まちこせんせいの ひ の区別は ありません。'); return; }
   if (!noneDone(t.doneMain2) || !noneDone(t.pMain2)) {
     window.alert('クエスト②の札を もう押しはじめています。切り替えるには、先に「きょうを やりなおす」を押してください。');
     return;
   }
-  var to = (t.machiko === true) ? 'ふつうの日' : 'まちこ先生の日';
+  var to = (t.machiko === true) ? 'ふつうの ひ' : 'まちこせんせいの ひ';
   if (!window.confirm('きょうを「' + to + '」に切り替えます。いいですか？')) return;
   t.machiko = (t.machiko !== true);
   /* まだ おかえり画面なら、えらんだことにして クエスト①へ進める */
@@ -3161,6 +3167,7 @@ $('btnClearStamp').addEventListener('click', function(){
   }
 }, false);
 
+/* KANA-CHECK-ON ここまで */
 /* 画面を回した・大きさが変わったときも枠を測り直す（iPadの縦横回転） */
 window.addEventListener('resize', function(){ setTimeout(fitPlayer, 120); }, false);
 window.addEventListener('orientationchange', function(){ setTimeout(fitPlayer, 400); }, false);

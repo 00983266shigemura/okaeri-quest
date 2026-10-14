@@ -476,7 +476,7 @@ step('T12a', function(){
   ok('T12-1 おはようクエストの前に 確認画面が出る', isOn('scrVsAsk'), $('scrVsAsk').className);
   ok('T12-2 札の画面は まだ出ない', !isOn('scrMorning'));
   eq('T12-3 確認画面の題は おはよう クエスト', txt('vsAskTitle'), 'おはよう クエスト');
-  ok('T12-4 ことばは「パパと競争する？」', txt('scrVsAsk').indexOf('パパと競争する？') >= 0, txt('scrVsAsk'));
+  ok('T12-4 ことばは「パパと きょうそう する？」', txt('scrVsAsk').indexOf('パパと きょうそう する？') >= 0, txt('scrVsAsk'));
   eq('T12-5 はい の ボタン', txt('btnVsYes'), 'はい');
   eq('T12-6 いいえ の ボタン', txt('btnVsNo'), 'いいえ');
   click($('btnVsYes'));
@@ -562,8 +562,8 @@ step('T13c', function(){
 step('T14a', function(){
   setDay(false, 'welcome', 'ask');
   ok('T14-1 おかえり画面が出る', isOn('scrWelcome'));
-  eq('T14-2 ふつうの日 の ボタン', txt('btnDayNormal'), 'ふつうの日');
-  eq('T14-3 まちこ先生の日 の ボタン', txt('btnDayMachiko'), 'まちこ先生の日');
+  eq('T14-2 ふつうの ひ の ボタン', txt('btnDayNormal'), 'ふつうの ひ');
+  eq('T14-3 まちこせんせいの ひ の ボタン', txt('btnDayMachiko'), 'まちこせんせいの ひ');
   ok('T14-4 10ぷんの ことばは出ない', txt('scrWelcome').indexOf('ぷん') < 0, txt('scrWelcome'));
   ok('T14-5 チャレンジの ボタンは無い', !$('btnChallenge'));
   click($('btnDayMachiko'));
@@ -596,7 +596,7 @@ step('T14b', function(){
   eq('T14-20 4枚目は ワーク', main2TaskList()[3] && main2TaskList()[3].t, 'ワークを する');
   state.today.machiko = true;
   openSettings();
-  ok('T14-21 設定画面に まちこ先生の日と出る', txt('dayInfo').indexOf('まちこ先生の日') >= 0, txt('dayInfo'));
+  ok('T14-21 設定画面に まちこせんせいの ひと出る', txt('dayInfo').indexOf('まちこせんせいの ひ') >= 0, txt('dayInfo'));
   $('ovSettings').className = 'ov';
 });
 step('T14c', function(){
