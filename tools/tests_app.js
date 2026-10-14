@@ -702,13 +702,16 @@ step('T19a', function(){
   for (i = 0; i < VIDEO_SOURCES.main.length; i++) names.push(VIDEO_SOURCES.main[i].name);
   eq('T19-1 どうがタイムのチャンネルの並び', names.join('|'), 'むしおかだいき|もりこんにゃく|シンカリオン');
   eq('T19-2 シンカリオンは再生リストのID', VIDEO_SOURCES.main[2].id, 'PLhWipIfRhqz287Ri53YFJWWiGn5f1xfwb');
-  ok('T19-3 シンカリオンの動画が一覧に入っている（29本）', bakedItemsOf(1, VIDEO_SOURCES.main[2].id).length === 29,
+  /* 本数は毎朝の便で増減する（見られない動画を外す）ので「1本以上」で見る */
+  ok('T19-3 シンカリオンの動画が一覧に入っている', bakedItemsOf(1, VIDEO_SOURCES.main[2].id).length >= 1,
      bakedItemsOf(1, VIDEO_SOURCES.main[2].id).length);
   setDay(false, 'video1');
   state.today.endAt = null;
   setChosenSrc(1, -1);
   render();
-  eq('T19-4 えらぶ画面にボタン3つ', nlen('vidPickBtns'), 3);
+  var withItems = 0;
+  for (i = 0; i < VIDEO_SOURCES.main.length; i++) { if (bakedItemsOf(1, VIDEO_SOURCES.main[i].id).length) withItems++; }
+  eq('T19-4 えらぶ画面のボタン＝動画のあるチャンネルの数（いまは3つ）', nlen('vidPickBtns') + '/' + withItems, '3/3');
   eq('T19-5 3つめは シンカリオン', nth('vidPickBtns', 2), 'シンカリオン');
 });
 step('T19b', function(){
@@ -726,6 +729,7 @@ step('T19b', function(){
   state.vidSkips = 3;
   save();
   render();
+  setBigVid(true);   /* 試験では枠を作らない（無音化）ので、再生中の大画面を手で立てておく */
   click($('btnVidChan'));
   eq('T19-8 再生中の「チャンネル」で読み直す', reloads, 1);
   eq('T19-9 選んでいたチャンネルは いったん消える', chosenSrc(1), -1);

@@ -265,6 +265,11 @@ body.bigvid .v-ctrl {
   font-size:19px; font-weight:bold; padding:11px 20px; margin:0 5px; cursor:pointer;
 }
 .ctrlBtn:active { background:#5a5a5a; }
+/* 縦向き（幅が狭い）では、4つのボタンが左の時計・右の「おしまいに する」に重ならないよう小さくする
+   （v34で「⇄ チャンネル」を足して4つになった。2026-10-14 査読の指摘＝幅768pxで左右とも約50px重なっていた） */
+@media (max-width: 900px) {
+  body.bigvid .ctrlBtn { font-size:15px; padding:10px 10px; margin:0 2px; }
+}
 
 /* 再生位置バー（大画面時のみ表示） */
 .v-seek { display:none; }
