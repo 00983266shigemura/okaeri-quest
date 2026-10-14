@@ -166,7 +166,7 @@ ok('T2-4 ほかのチャンネルは新着が入る',
 st = w.state()
 ok('T2-5 帳面に失敗が残る', S0 in st and st[S0]['fail_since'] == fetch_state.today(), st)
 ok('T2-6 帳面にチャンネル名が残る', st.get(S0, {}).get('name') == ALL[0][2], st.get(S0))
-ok('T2-7 取り直しは3回', CALLS['fetch'] >= 3)
+ok('T2-7 失敗した1本だけ3回取り直す（ほかは1回）', CALLS['fetch'] == len(ALL) + len(uvl.RETRY_WAITS), CALLS['fetch'])
 w.done()
 
 # ---------- T3 全部404＝一覧は1文字も変わらない ----------
@@ -247,6 +247,29 @@ rc = run_main()
 ok('T8-3 帳面が壊れていたら終了コード1', rc == 1, rc)
 ok('T8-4 そのときも書き換えない', w.index() == idx_before)
 w.done()
+
+
+# ---------- T11 前回の一覧が無いチャンネルの失敗＝その日のうちに知らせる（査読の指摘1） ----------
+reset()
+w = Work()
+src = w.index().replace("{ id: 'UU6cXcs9jEmAx9qPx6ubWWkg', name: 'けいのちゃんねる' }",
+                        "{ id: 'UU6cXcs9jEmAx9qPx6ubWWkg', name: 'けいのちゃんねる' },\n    { id: 'UUwrongIDwrongIDwrongID00', name: 'あたらしいチャンネル' }")
+io.open(uvl.INDEX, 'w', encoding='utf-8').write(src)
+SOURCES['UUwrongIDwrongIDwrongID00'] = 'fail'
+rc = run_main()
+st = w.state()
+ok('T11-1 便は止めない', rc == 0, rc)
+ok('T11-2 すぐ知らせる印が付く', st.get('UUwrongIDwrongIDwrongID00', {}).get('urgent') is True, st)
+al = fetch_state.due_alerts(st, fetch_state.today())
+ok('T11-3 その日のうちに知らせる', [k for k, _ in al] == ['UUwrongIDwrongIDwrongID00'], al)
+ok('T11-4 前回の一覧があるチャンネルの失敗は すぐには知らせない',
+   fetch_state.due_alerts({'UUx': {'fail_since': fetch_state.today(), 'alerted': None, 'why': 'x'}}, fetch_state.today()) == [])
+w.done()
+
+# ---------- T12 日付は日本時間 ----------
+import datetime as _dt  # noqa: E402
+jst_now = _dt.datetime.now(_dt.timezone(_dt.timedelta(hours=9))).date().isoformat()
+ok('T12-1 fetch_state.today() は日本時間の日付', fetch_state.today() == jst_now, (fetch_state.today(), jst_now))
 
 
 # ---------- T9 知らせるか（日付で数える・同じ日の再実行で増えない・7日おき） ----------

@@ -28,7 +28,7 @@ def cmd_record(a):
     try:
         state = fetch_state.load(a.state)
     except ValueError as e:
-        print('::error::fetch_state.json を読み取れません: %s' % e)
+        print('::error::fetch_state.json を読み取れません: %s。%s' % (e, fetch_state.BROKEN_HINT))
         return 1
     if a.holidays == 'success':
         fetch_state.mark_ok(state, fetch_state.HOLIDAYS_KEY)

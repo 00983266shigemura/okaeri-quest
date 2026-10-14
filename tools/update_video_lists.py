@@ -213,11 +213,11 @@ def main():
 
     frames = read_sources(src)
     pool = load_pool()
-    today = datetime.date.today().isoformat()
+    today = fetch_state.today()   # 日本時間（GitHubの便はUTCで動く）
     try:
         state = fetch_state.load()
     except ValueError as e:
-        fail('fetch_state.json を読み取れません: %s' % e)
+        fail('fetch_state.json を読み取れません: %s。%s' % (e, fetch_state.BROKEN_HINT))
 
     updated = {}
     live_ids = set()
@@ -235,10 +235,11 @@ def main():
             entries = [e for e in pool.get(sid, []) if e.get('id')]
             if xml is None:
                 # 取れなかった＝ためた記録も「見られるか」の印も前回のまま使う（見直しもしない）
-                fetch_state.mark_fail(state, sid, 'RSSが取れない: ' + why, name=sname)
+                usable = [e for e in entries if e.get('ok', True)][:MAX_ITEMS]
+                # 前回の一覧が無い（新しく足したチャンネルのID違いなど）＝代わりに出せる物が無いので、その日のうちに知らせる
+                fetch_state.mark_fail(state, sid, 'RSSが取れない: ' + why, name=sname, urgent=not usable)
                 failed.append(sname)
                 say('::warning::%s / %s のRSSが取れませんでした（%s）。前回の一覧のまま続けます' % (key, sname, why))
-                usable = [e for e in entries if e.get('ok', True)][:MAX_ITEMS]
                 out_sources.append({'id': sid, 'name': sname,
                                     'items': [{'id': e['id'], 't': e['t']} for e in usable]})
                 continue
@@ -286,7 +287,7 @@ def main():
                 failed.append(sname)
                 say('::warning::%s / %s は見られる動画が0本になりました。前回の記録のまま続けます' % (key, sname))
             elif not usable:
-                fetch_state.mark_fail(state, sid, '見られる動画が0本', name=sname)
+                fetch_state.mark_fail(state, sid, '見られる動画が0本', name=sname, urgent=True)
                 failed.append(sname)
                 say('::warning::%s / %s は見られる動画が0本です（子どもの画面には出ません）' % (key, sname))
             else:

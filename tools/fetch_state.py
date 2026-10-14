@@ -29,8 +29,13 @@ REMIND_EVERY_DAYS = 7   # 直らないあいだは7日おきに もういちど�
 HOLIDAYS_KEY = 'holidays'
 
 
+JST = datetime.timezone(datetime.timedelta(hours=9))
+BROKEN_HINT = 'fetch_state.json を消して もういちど実行すれば直ります（消えるのは失敗の記録だけ）'
+
+
 def today():
-    return datetime.date.today().isoformat()
+    """日本時間の日付。GitHubの便はUTCで動くため、そのままだと1日ずれる。"""
+    return datetime.datetime.now(JST).date().isoformat()
 
 
 def load(path=None):
@@ -61,16 +66,22 @@ def mark_ok(state, key):
     state.pop(key, None)
 
 
-def mark_fail(state, key, why, name=None, day=None):
-    """name＝知らせに出す名前（チャンネル名など）。IDだけでは何のことか分からないため。"""
+def mark_fail(state, key, why, name=None, day=None, urgent=False):
+    """name＝知らせに出す名前（チャンネル名など）。IDだけでは何のことか分からないため。
+    urgent＝前回の一覧が無く、代わりに出せる物が無い失敗（新しく足したチャンネルのID違いなど）。
+    3日待たずに その日のうちに知らせる。"""
     day = day or today()
     cur = state.get(key)
     if cur and cur.get('fail_since'):
         cur['why'] = why
         if name:
             cur['name'] = name
+        if urgent:
+            cur['urgent'] = True
         return
     state[key] = {'fail_since': day, 'alerted': None, 'why': why, 'name': name or key}
+    if urgent:
+        state[key]['urgent'] = True
 
 
 def days_between(a, b):
@@ -92,7 +103,7 @@ def due_alerts(state, day=None):
         since = e.get('fail_since')
         if not since:
             continue
-        if days_between(since, day) < ALERT_AFTER_DAYS:
+        if days_between(since, day) < ALERT_AFTER_DAYS and not e.get('urgent'):
             continue
         last = e.get('alerted')
         if last and last >= since and days_between(last, day) < REMIND_EVERY_DAYS:
