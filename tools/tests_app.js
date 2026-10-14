@@ -696,6 +696,59 @@ step('T18b', function(){
   window.confirm = _confirm; window.alert = _alert;
 });
 
+/* T19 シンカリオンの追加と、再生中のチャンネル選び直し（v34・2026-10-14 しげ指示） */
+step('T19a', function(){
+  var names = [], i;
+  for (i = 0; i < VIDEO_SOURCES.main.length; i++) names.push(VIDEO_SOURCES.main[i].name);
+  eq('T19-1 どうがタイムのチャンネルの並び', names.join('|'), 'むしおかだいき|もりこんにゃく|シンカリオン');
+  eq('T19-2 シンカリオンは再生リストのID', VIDEO_SOURCES.main[2].id, 'PLhWipIfRhqz287Ri53YFJWWiGn5f1xfwb');
+  ok('T19-3 シンカリオンの動画が一覧に入っている（29本）', bakedItemsOf(1, VIDEO_SOURCES.main[2].id).length === 29,
+     bakedItemsOf(1, VIDEO_SOURCES.main[2].id).length);
+  setDay(false, 'video1');
+  state.today.endAt = null;
+  setChosenSrc(1, -1);
+  render();
+  eq('T19-4 えらぶ画面にボタン3つ', nlen('vidPickBtns'), 3);
+  eq('T19-5 3つめは シンカリオン', nth('vidPickBtns', 2), 'シンカリオン');
+});
+step('T19b', function(){
+  var reloads = 0, _rp = reloadPage;
+  reloadPage = function(){ reloads++; };
+  setDay(false, 'video1');
+  state.today.endAt = null;
+  setChosenSrc(1, -1);
+  render();
+  click($('vidPickBtns').childNodes[2]);
+  eq('T19-6 スタート前に選ぶと シンカリオンが選ばれる', chosenSrc(1), 2);
+  eq('T19-7 スタート前は 読み直さない', reloads, 0);
+  var endAt = Date.now() + 10 * 60000;
+  state.today.endAt = endAt;
+  state.vidSkips = 3;
+  save();
+  render();
+  click($('btnVidChan'));
+  eq('T19-8 再生中の「チャンネル」で読み直す', reloads, 1);
+  eq('T19-9 選んでいたチャンネルは いったん消える', chosenSrc(1), -1);
+  render();
+  ok('T19-10 読み直したあとは えらぶ画面', $('vidPickWrap').style.display === 'block', $('vidPickWrap').style.display);
+  ok('T19-11 大画面ではない', document.body.className.indexOf('bigvid') < 0, document.body.className);
+  eq('T19-12 時間は そのまま すすむ', txt('vidPickNote'), 'じかんは そのまま すすむよ。');
+  eq('T19-13 終わり時刻は変わらない', state.today.endAt, endAt);
+  click($('vidPickBtns').childNodes[0]);
+  eq('T19-14 別のチャンネルを選び直せる', chosenSrc(1), 0);
+  eq('T19-15 選び直したら読み直して再生へ', reloads, 2);
+  eq('T19-16 飛ばした数は0に戻る', state.vidSkips, 0);
+  eq('T19-17 その日の開始位置から', state.today.vidCur,
+     startIndexForToday(bakedForKind(1).items.length, 1));
+  eq('T19-18 終わり時刻は変わらない（選び直しても のびない）', state.today.endAt, endAt);
+  setDay(false, 'video2');
+  state.today.endAt = null;
+  setChosenSrc(2, -1);
+  render();
+  eq('T19-19 ねるまえタイムのチャンネルは2つのまま', nlen('vidPickBtns'), 2);
+  reloadPage = _rp;
+});
+
 /* ---- 結果 ---- */
 window.setTimeout = _setTimeout;
 (function(){

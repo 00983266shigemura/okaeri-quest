@@ -31,6 +31,13 @@
   else if (h === 'stamp') state.today.phase = 'stamp';
   else if (h === 'zukan') state.today.phase = 'zukan';
   else if (h === 'night') state.today.phase = 'night';
+  else if (h === 'video1') {
+    /* #video1＝どうがタイムの「どの チャンネルに する？」。
+       #video1-playpick＝再生中に「チャンネル」で選び直している画面（v34） */
+    state.today.phase = 'video1';
+    state.today.srcMain = -1;
+    state.today.endAt = (opt === 'playpick') ? (Date.now() + 12 * 60000) : null;
+  }
   save();
   render();
 })();
