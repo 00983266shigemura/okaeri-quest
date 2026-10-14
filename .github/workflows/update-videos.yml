@@ -2,6 +2,13 @@ name: 動画一覧の自動更新
 
 # 毎日1回、各チャンネルの新着を取り込んで index.html を更新する。
 # 変更が無い日は何もコミットしない。
+#
+# 2026-10-14（v34）＝1か所の失敗で全部を止めない作りへ変えた。
+#   - 動画・祝日・記録・コミットは、前の段が失敗しても順に走る（!cancelled()）。
+#     以前は動画の段が失敗すると祝日もコミットも飛ばされていた（10/6・10/12〜14 に実測）。
+#   - 取れなかったチャンネルは前回の一覧のまま続ける（tools/update_video_lists.py）。
+#   - 失敗メールを出すのは「3日つづいた失敗（その後は7日おき）」と「データが壊れている」ときだけ。
+#     最後の段をわざと失敗させて、いま届いている GitHub の「Run failed」メールで知らせる。
 on:
   schedule:
     # 20:00 UTC = 翌 05:00 日本時間（子どもが使う夕方より前に更新しておく）
@@ -23,23 +30,40 @@ jobs:
         uses: actions/checkout@v4
 
       - name: 動画一覧を最新化
+        id: vid
+        # 失敗しても後ろの段は走らせる（失敗は最後の段で知らせる）
+        continue-on-error: true
         run: python3 tools/update_video_lists.py
 
       - name: 祝日一覧を最新化
-        # 祝日の取得に失敗しても、動画の更新は止めない（祝日は前回の値が残る＝安全側）
+        id: hol
+        if: ${{ !cancelled() }}
+        # 祝日の取得に失敗しても止めない（祝日は前回の値が残る＝安全側。続いたら最後の段で知らせる）
         continue-on-error: true
         run: python3 tools/update_holidays.py
 
+      - name: 取れなかった物を記録する
+        id: health
+        if: ${{ !cancelled() }}
+        run: python3 tools/fetch_health.py record --holidays "${{ steps.hol.outcome }}" --alerts "$RUNNER_TEMP/okq_alerts.txt"
+
       - name: 変更があればコミットして公開
+        if: ${{ !cancelled() }}
         # videos_pool.json も必ず一緒にコミットする。
         # これを忘れると、ためた動画が翌朝ぜんぶ失われ、一覧が15本へ戻ってしまう。
+        # fetch_state.json＝取れていない物の帳面（成功している日は変わらない＝コミットは増えない）。
         run: |
-          if git diff --quiet -- index.html videos_pool.json && [ -z "$(git status --porcelain -- videos_pool.json)" ]; then
+          if [ -z "$(git status --porcelain -- index.html videos_pool.json fetch_state.json)" ]; then
             echo "変更なし。コミットしません。"
             exit 0
           fi
           git config user.name "okaeri-quest bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- index.html videos_pool.json
+          if [ -f fetch_state.json ]; then git add -- fetch_state.json; fi
           git commit -m "動画・祝日の一覧を自動更新"
           git push
+
+      - name: 長く続く取得失敗と、壊れたデータを知らせる
+        if: ${{ !cancelled() }}
+        run: python3 tools/fetch_health.py final --videos "${{ steps.vid.outcome }}" --alerts "$RUNNER_TEMP/okq_alerts.txt"

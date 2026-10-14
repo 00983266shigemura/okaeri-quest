@@ -20,11 +20,17 @@
   （消してしまうと、一時的な失敗で古い動画が永久に失われるため）
 
 安全側の作り:
-  - 取得に失敗したら index.html を一切書き換えずに終了する
+  - 1つのチャンネルが取れなくても、ほかのチャンネルは更新する（2026-10-14 v34）。
+    取れなかったチャンネルは、ためた記録も一覧も前回のまま（3回まで取り直してから あきらめる）。
+    以前は1つ失敗すると便ぜんぶが止まり、祝日の更新まで止まっていた（10/6・10/12〜14 に実測）。
+  - 失敗が何日つづいているかは fetch_state.json に覚え、長くつづいたときだけ
+    tools/fetch_health.py が知らせる（一時的な失敗では失敗メールを出さない）。
+  - 見直しで一覧が0本になったチャンネルは、前回の記録へ戻す（判定の窓口側の一時的な異常で空にしない）。
   - 判定できなかった動画は「見られる」扱いにする（一覧を空にしないことを優先）
   - 変更が無ければ何も書かない
+  - 題名の「<」と、古いiPadの JavaScript を止める改行文字（U+2028/U+2029）は書き出すときに逃がす
 
-終了コード: 0=正常(変更あり/なしを問わず) / 1=失敗(書き換えなし)
+終了コード: 0=正常(一部のチャンネルが取れなかった日も含む) / 1=壊れていて書き換えなし
 """
 import datetime
 import io
@@ -33,8 +39,11 @@ import os
 import re
 import sys
 import html
+import time
 import urllib.error
 import urllib.request
+
+import fetch_state
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -65,15 +74,41 @@ def feed_url(src):
     return PLAYLIST_FEED % src
 
 
-def fetch(url):
+RETRY_WAITS = (5, 15)   # 取り直すまでの待ち（秒）＝合わせて3回ためす
+
+
+def fetch_once(url):
     req = urllib.request.Request(url, headers={'User-Agent': UA})
-    try:
-        with urllib.request.urlopen(req, timeout=30) as r:
-            if r.status != 200:
-                fail('取得失敗 HTTP %s: %s' % (r.status, url))
-            return r.read().decode('utf-8', 'replace')
-    except Exception as e:
-        fail('取得できませんでした (%s): %s' % (e, url))
+    with urllib.request.urlopen(req, timeout=30) as r:
+        if r.status != 200:
+            raise IOError('HTTP %s' % r.status)
+        return r.read().decode('utf-8', 'replace')
+
+
+def fetch_feed(url):
+    """RSSを取る。失敗したら少し待って取り直す。3回とも駄目なら (None, 理由) を返す（便は止めない）。"""
+    why = ''
+    for i in range(len(RETRY_WAITS) + 1):
+        try:
+            xml = fetch_once(url)
+            if parse_feed(xml):
+                return xml, ''
+            why = '動画が0本の応答'
+        except Exception as e:
+            why = str(e)
+        if i < len(RETRY_WAITS):
+            time.sleep(RETRY_WAITS[i])
+    return None, why
+
+
+def js_safe(line):
+    """JSONを <script> の中へ書くときの逃がし。
+
+    「</script>」を含む題名が来ると、そこでページの JavaScript が切れてアプリ全体が動かなくなる。
+    U+2028/U+2029 は古いSafari（2012年iPad）では文字列の中でも改行あつかい＝文法エラーになる。
+    JSONの中で「<」が出るのは文字列の中だけなので、まとめて置き換えてよい。
+    """
+    return line.replace('<', '\\u003c').replace(u'\u2028', '\\u2028').replace(u'\u2029', '\\u2029')
 
 
 def embeddable(vid):
@@ -179,8 +214,14 @@ def main():
     frames = read_sources(src)
     pool = load_pool()
     today = datetime.date.today().isoformat()
+    try:
+        state = fetch_state.load()
+    except ValueError as e:
+        fail('fetch_state.json を読み取れません: %s' % e)
 
     updated = {}
+    live_ids = set()
+    failed = []
     for key in sorted(frames.keys()):
         out_sources = []
         for chan in frames[key]:
@@ -188,11 +229,22 @@ def main():
             if not re.match(r'^(UU|PL)[\w-]+$', sid):
                 fail('%s の供給源IDが想定外です: %s' % (key, sid))
 
-            fresh = parse_feed(fetch(feed_url(sid)))
-            if not fresh:
-                fail('%s / %s (%s) から動画を取得できませんでした' % (key, sname, sid))
+            live_ids.add(sid)
 
+            xml, why = fetch_feed(feed_url(sid))
             entries = [e for e in pool.get(sid, []) if e.get('id')]
+            if xml is None:
+                # 取れなかった＝ためた記録も「見られるか」の印も前回のまま使う（見直しもしない）
+                fetch_state.mark_fail(state, sid, 'RSSが取れない: ' + why, name=sname)
+                failed.append(sname)
+                say('::warning::%s / %s のRSSが取れませんでした（%s）。前回の一覧のまま続けます' % (key, sname, why))
+                usable = [e for e in entries if e.get('ok', True)][:MAX_ITEMS]
+                out_sources.append({'id': sid, 'name': sname,
+                                    'items': [{'id': e['id'], 't': e['t']} for e in usable]})
+                continue
+            fresh = parse_feed(xml)
+            before = [dict(e) for e in entries]
+
             known = set(e['id'] for e in entries)
             added = 0
             for it in fresh:
@@ -224,11 +276,22 @@ def main():
             entries.sort(key=order_key, reverse=True)
             if len(entries) > POOL_MAX:
                 entries = entries[:POOL_MAX]
-            pool[sid] = entries
 
             usable = [e for e in entries if e.get('ok', True)][:MAX_ITEMS]
-            if not usable:
-                fail('%s / %s は見られる動画が0本でした' % (key, sname))
+            if not usable and any(e.get('ok', True) for e in before):
+                # 前は見られる動画があったのに0本になった＝判定の窓口の一時的な異常とみて、前回の記録へ戻す
+                entries = before
+                usable = [e for e in entries if e.get('ok', True)][:MAX_ITEMS]
+                fetch_state.mark_fail(state, sid, '見られる動画が0本になった（前回の記録へ戻した）', name=sname)
+                failed.append(sname)
+                say('::warning::%s / %s は見られる動画が0本になりました。前回の記録のまま続けます' % (key, sname))
+            elif not usable:
+                fetch_state.mark_fail(state, sid, '見られる動画が0本', name=sname)
+                failed.append(sname)
+                say('::warning::%s / %s は見られる動画が0本です（子どもの画面には出ません）' % (key, sname))
+            else:
+                fetch_state.mark_ok(state, sid)
+            pool[sid] = entries
 
             out_sources.append({'id': sid, 'name': sname,
                                 'items': [{'id': e['id'], 't': e['t']} for e in usable]})
@@ -236,21 +299,31 @@ def main():
 
         updated[key] = {'sources': out_sources}
 
-    new_line = 'var VIDEO_LISTS = ' + json.dumps(
-        updated, ensure_ascii=False, separators=(",", ":")) + ';'
+    # VIDEO_SOURCES から外したチャンネルの失敗記録は捨てる（外したのに知らせが続かないように）
+    for k in list(state.keys()):
+        if k != fetch_state.HOLIDAYS_KEY and k not in live_ids:
+            del state[k]
+
+    body = js_safe(json.dumps(updated, ensure_ascii=False, separators=(",", ":")))
+    # 書き出す前の検算＝逃がしたあとも同じ中身に読めること
+    if json.loads(body) != updated:
+        fail('一覧の書き出しの検算に失敗しました')
+    new_line = 'var VIDEO_LISTS = ' + body + ';'
     pool_txt = json.dumps(pool, ensure_ascii=False, indent=1, sort_keys=True) + '\n'
     old_pool = io.open(POOL, encoding='utf-8').read() if os.path.exists(POOL) else ''
 
     if new_line == m.group(0) and pool_txt == old_pool:
-        say('変更なし')
-        return
-
-    out = src[:m.start()] + new_line + src[m.end():]
-    if LINE_RE.search(out) is None:
-        fail('書き換え後の検算に失敗しました')
-    io.open(INDEX, 'w', encoding='utf-8').write(out)
-    io.open(POOL, 'w', encoding='utf-8').write(pool_txt)
-    say('更新しました')
+        say('動画一覧は変更なし')
+    else:
+        out = src[:m.start()] + new_line + src[m.end():]
+        if LINE_RE.search(out) is None or LINE_RE.search(out).group(0) != new_line:
+            fail('書き換え後の検算に失敗しました')
+        io.open(INDEX, 'w', encoding='utf-8').write(out)
+        io.open(POOL, 'w', encoding='utf-8').write(pool_txt)
+        say('動画一覧を更新しました')
+    fetch_state.save(state)
+    if failed:
+        say('取れなかったチャンネル: %s（前回の一覧のまま）' % '・'.join(failed))
 
 
 if __name__ == '__main__':
