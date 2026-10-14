@@ -753,6 +753,21 @@ step('T19b', function(){
   reloadPage = _rp;
 });
 
+/* T20 「どれを みる？」画面は絵だけ＝題名（漢字入り）を出さない（v36・2026-10-15 しげ裁定「Bで」） */
+step('T20', function(){
+  /* どうがタイムの3つめ（シンカリオン）を選んだ状態にする＝題名がすべて漢字入りのチャンネル */
+  setChosenSrc(1, 2);
+  vidBaked = bakedForKind(1);
+  openPick();
+  var g = $('pickGrid');
+  var items = g.querySelectorAll('.pickItem');
+  eq('T20-1 動画の数だけ 絵が並ぶ', items.length, vidBaked.items.length);
+  eq('T20-2 どの札にも 絵がある', g.querySelectorAll('.pickItem img').length, vidBaked.items.length);
+  eq('T20-3 題名の文字は 1つも出ない', (g.textContent || '').replace(/\s/g, ''), '');
+  ok('T20-4 試験の前提＝題名には漢字が入っている', /[\u4e00-\u9fff]/.test(vidBaked.items.map(function(x){ return x.t; }).join('')));
+  $('ovPick').className = 'ov';
+});
+
 /* ---- 結果 ---- */
 window.setTimeout = _setTimeout;
 (function(){

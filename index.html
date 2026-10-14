@@ -340,10 +340,6 @@ body.bigvid .v-seek {
   border:3px solid #ddd; border-radius:10px;
 }
 .pickItem.cur img { border-color:#0072B2; }
-.pickItem .pt {
-  font-size:13px; line-height:1.4; color:#555; margin-top:4px;
-  height:37px; overflow:hidden;
-}
 body.bigvid .v-remain { margin:0; font-size:26px; color:#F0E442; }
 body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size:16px; padding:8px 16px; }
 
@@ -702,7 +698,7 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 35;
+var APP_VERSION = 36;
 
 /* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
    上の APP_VERSION と隣り合っていると、版数を上げたときに
@@ -2512,7 +2508,9 @@ function pickTapper(idx){
 }
 function openPick(){
   if (!vidBaked || !vidBaked.items.length) return;
-  var g = $('pickGrid'), i, it, d, im, tx;
+  /* 題名は出さない＝絵だけで えらぶ（v36・2026-10-15 しげ裁定「Bで」）。
+     題名は YouTube の文字そのままで、ほとんどに漢字が入り 子どもが読めないため。 */
+  var g = $('pickGrid'), i, it, d, im;
   while (g.firstChild) g.removeChild(g.firstChild);
   for (i = 0; i < vidBaked.items.length; i++) {
     it = vidBaked.items[i];
@@ -2521,11 +2519,7 @@ function openPick(){
     im = document.createElement('img');
     im.setAttribute('src', 'https://i.ytimg.com/vi/' + it.id + '/mqdefault.jpg');
     im.setAttribute('alt', '');
-    tx = document.createElement('div');
-    tx.className = 'pt';
-    tx.textContent = it.t;
     d.appendChild(im);
-    d.appendChild(tx);
     bindTap(d, pickTapper(i));
     g.appendChild(d);
   }
