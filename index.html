@@ -669,6 +669,8 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
 
     <div class="row wrap" style="text-align:left;">
       <button class="setBtn" id="btnToggleRest">きょうの クエストを 切りかえる</button>
+      <button class="setBtn" id="btnReaskVs">「パパと競争する？」を 聞き直す</button>
+      <button class="setBtn" id="btnToggleMachiko">ふつうの日 ⇄ まちこ先生の日</button>
       <button class="setBtn" id="btnResetToday">きょうを やりなおす</button>
       <button class="setBtn" id="btnClearHist">きろくを 全部消す</button>
       <button class="setBtn" id="btnClearStamp">スタンプを 全部消す</button>
@@ -3050,6 +3052,39 @@ $('btnToggleRest').addEventListener('click', function(){
     $('ovSettings').className = 'ov';
     render();
   }
+}, false);
+/* 押しまちがいから戻る道（v33）。どちらも その日の ほかの記録は 消さない。
+   「パパと競争する？」の聞き直し＝いまの クエストの こたえと かちを 消して、確認画面を もう一度 出す。 */
+$('btnReaskVs').addEventListener('click', function(){
+  var ph = state.today.phase;
+  if (ph !== 'morning' && ph !== 'main' && ph !== 'main2' && ph !== 'after') {
+    window.alert('いまは クエストの とちゅうでは ありません。クエストの画面のときに 押してください。');
+    return;
+  }
+  if (state.today.vs) delete state.today.vs[ph];
+  if (state.today.win) delete state.today.win[ph];
+  syncBothForToday();
+  save();
+  $('ovSettings').className = 'ov';
+  render();
+}, false);
+/* ふつうの日⇄まちこ先生の日。クエスト②の札が まだ1枚も押されていないときだけ
+   （押したあとに札の並びが変わると、できた印の位置が ずれるため）。 */
+$('btnToggleMachiko').addEventListener('click', function(){
+  var t = state.today;
+  if (t.rest) { window.alert('休日パターンには ふつうの日／まちこ先生の日 の区別は ありません。'); return; }
+  if (!noneDone(t.doneMain2) || !noneDone(t.pMain2)) {
+    window.alert('クエスト②の札を もう押しはじめています。切り替えるには、先に「きょうを やりなおす」を押してください。');
+    return;
+  }
+  var to = (t.machiko === true) ? 'ふつうの日' : 'まちこ先生の日';
+  if (!window.confirm('きょうを「' + to + '」に切り替えます。いいですか？')) return;
+  t.machiko = (t.machiko !== true);
+  /* まだ おかえり画面なら、えらんだことにして クエスト①へ進める */
+  if (t.phase === 'welcome') t.phase = 'main';
+  save();
+  $('ovSettings').className = 'ov';
+  render();
 }, false);
 $('btnResetToday').addEventListener('click', function(){
   if (window.confirm('今日のチェックを全部消して最初からにします。いいですか？')) {

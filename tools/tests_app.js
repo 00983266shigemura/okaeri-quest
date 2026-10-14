@@ -663,6 +663,39 @@ step('T17', function(){
   ok('T17-7 休日⇄平日の切替で やり直すクエストは 聞き直す', state.today.vs.main === undefined);
 });
 
+/* T18 押しまちがいから戻る道（v33査読の指摘1） */
+step('T18a', function(){
+  setDay(false, 'main2', 'ask');
+  state.today.vs.main = true;
+  click($('btnVsNo'));
+  ok('T18-1 クエスト②で いいえ を押した', state.today.vs.main2 === false);
+  tapFull('main2', 'main2Cards', 2);           /* ぷちゲームを1枚押してから気づいた */
+  click($('btnReaskVs'));
+  ok('T18-2 聞き直すと 確認画面が出る', isOn('scrVsAsk'));
+  ok('T18-3 クエスト①の こたえは 消えない', state.today.vs.main === true);
+  ok('T18-4 押した札は 消えない', state.today.doneMain2[2] === true);
+  click($('btnVsYes'));
+  eq('T18-5 こんどは 2れつ', rowLen('main2Cards', 0), 2);
+});
+step('T18b', function(){
+  setDay(false, 'main');
+  state.today.machiko = true;
+  state.today.doneMorning = [1, 1, 1, 1, 1, 1, 1, 1];
+  state.today.win = { morning: 'sora' };
+  var _confirm = window.confirm, _alert = window.alert, alerted = 0;
+  window.confirm = function(){ return true; };
+  window.alert = function(){ alerted++; };
+  click($('btnToggleMachiko'));
+  ok('T18-6 まちこ先生の日 → ふつうの日 へ戻せる', state.today.machiko === false);
+  eq('T18-7 クエスト②は4枚に戻る', main2TaskList().length, 4);
+  ok('T18-8 朝の記録と かちは 消えない', state.today.doneMorning[0] === 1 && winnerOf('morning') === 'sora');
+  state.today.doneMain2 = [true];
+  click($('btnToggleMachiko'));
+  eq('T18-9 クエスト②を押しはじめたら 切り替えない（注意文）', alerted, 1);
+  ok('T18-10 ふつうの日のまま', state.today.machiko === false);
+  window.confirm = _confirm; window.alert = _alert;
+});
+
 /* ---- 結果 ---- */
 window.setTimeout = _setTimeout;
 (function(){
