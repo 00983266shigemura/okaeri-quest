@@ -22,12 +22,9 @@ button { font-family:inherit; }
 .screen {
   position:absolute; top:0; left:0; right:0; bottom:0;
   overflow-y:auto; -webkit-overflow-scrolling:touch;
-  /* 下の余白は20px。しめきりバーのある画面だけ 110px へ広げる（.screen.hasBar）。
-     もとは60pxだったが、バーの無い画面では使われない余白で、
-     8枚のおはようクエストが1画面に収まらない原因の一つだった。 */
+  /* 下の余白は20px。v33で しめきりバーを撤去したので、どの画面も同じ余白。 */
   display:none; padding:16px 14px 20px;
 }
-.screen.hasBar { padding-bottom:110px; }
 .screen.on { display:block; }
 
 .hd { text-align:center; margin-bottom:10px; }
@@ -105,6 +102,8 @@ button { font-family:inherit; }
 /* 行の間の余白は px で固定する。%だと画面幅に比例して大きくなる。 */
 .vsRow .card { width:46%; margin:6px 2%; padding:9px 8px; }
 .vsRow .card.both { width:96%; }
+/* パパと きょうそう しない クエスト（v33）＝パパの れつを 出さず、そらの札を 左右いっぱいにする */
+.vsRow .card.solo { width:96%; }
 /* 名前（そら／パパ）は 絵文字の横へ寄せる。
    たてに1本分の行が浮き、8枚のおはようクエストが1画面に収まる
    （2026-09-16 しげ裁定「推奨で」＝案B。実測はみ出し 173px→0px）。 */
@@ -139,32 +138,9 @@ button { font-family:inherit; }
 .w-center { text-align:center; padding-top:40px; }
 .w-title { font-size:40px; color:#0072B2; font-weight:bold; margin-bottom:18px; }
 .w-msg { font-size:24px; line-height:1.7; margin-bottom:28px; }
-
-/* しめきりバー（のこり時間の棒グラフ）。
-   画面の下に固定して、減っていく棒と数字の両方で「あとどれくらいか」を見せる。
-   色だけに頼らず、ことば（あと○ふん／じかん オーバー）も必ず出す。 */
-.limitBar {
-  position:fixed; left:0; right:0; bottom:0; z-index:20;
-  background:rgba(255,249,232,0.96); border-top:2px solid #e6ddc4;
-  padding:8px 14px 10px;
-}
-.lb-row {
-  display:-webkit-flex; display:flex;
-  -webkit-justify-content:space-between; justify-content:space-between;
-  -webkit-align-items:baseline; align-items:baseline;
-  margin-bottom:5px;
-}
-.lb-label { font-size:15px; color:#666; }
-.lb-time { font-size:26px; font-weight:bold; color:#0072B2; }
-.lb-track { height:16px; border-radius:8px; background:#e2e2e2; overflow:hidden; }
-.lb-fill {
-  height:16px; border-radius:8px; background:#0072B2; width:100%;
-  -webkit-transition:width 0.5s linear; transition:width 0.5s linear;
-}
-.limitBar.warn .lb-time { color:#E69F00; }
-.limitBar.warn .lb-fill { background:#E69F00; }
-.limitBar.over .lb-time { color:#D55E00; }
-.limitBar.over .lb-fill { background:#D55E00; }
+/* おかえり画面の「ふつうの日／まちこ先生の日」と、「パパと競争する？」の はい／いいえ。
+   2つの ボタンは 色と 字の両方で 分かる（色だけに頼らない）。 */
+.w-choice .bigBtn { min-width:220px; }
 
 /* 動画画面 */
 .v-head { display:-webkit-flex; display:flex; -webkit-justify-content:space-between; justify-content:space-between; -webkit-align-items:center; align-items:center; }
@@ -484,8 +460,11 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
   </div>
   <div class="w-center">
     <div class="w-title">おかえりなさい！</div>
-    <div class="w-msg" id="welcomeMsg"></div>
-    <button class="bigBtn orange" id="btnChallenge">チャレンジ！</button>
+    <div class="w-msg" id="welcomeMsg">きょうは どっち？</div>
+    <div class="w-choice">
+      <button class="bigBtn orange" id="btnDayNormal">ふつうの日</button>
+      <button class="bigBtn" id="btnDayMachiko">まちこ先生の日</button>
+    </div>
     <div style="margin-top:18px"><button class="miniBtn" id="btnZukanW">むしずかん ▶</button></div>
   </div>
 </div>
@@ -497,10 +476,6 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
     <div class="hd-progress" id="hdProg"></div>
   </div>
   <div class="cards" id="mainCards"></div>
-  <div class="limitBar" id="limit1">
-    <div class="lb-row"><span class="lb-label" id="lb1Label"></span><span class="lb-time" id="lb1Time"></span></div>
-    <div class="lb-track"><div class="lb-fill" id="lb1Fill"></div></div>
-  </div>
 </div>
 
 <div class="screen" id="scrMain2">
@@ -510,9 +485,21 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
     <div class="hd-progress" id="hdProg2"></div>
   </div>
   <div class="cards" id="main2Cards"></div>
-  <div class="limitBar" id="limit2">
-    <div class="lb-row"><span class="lb-label" id="lb2Label"></span><span class="lb-time" id="lb2Time"></span></div>
-    <div class="lb-track"><div class="lb-fill" id="lb2Fill"></div></div>
+</div>
+
+<!-- どのクエストも、はじめる前に「パパと競争する？」を聞く（v33・2026-10-14 しげ指示）。
+     はい＝そら／パパ の2れつ。いいえ＝そらの札だけ。 -->
+<div class="screen" id="scrVsAsk">
+  <div class="hd">
+    <div class="hd-date" id="hdDateQ"></div>
+    <h1 class="hd-title" id="vsAskTitle"></h1>
+  </div>
+  <div class="w-center">
+    <div class="w-msg">パパと競争する？</div>
+    <div class="w-choice">
+      <button class="bigBtn orange" id="btnVsYes">はい</button>
+      <button class="bigBtn" id="btnVsNo">いいえ</button>
+    </div>
   </div>
 </div>
 
@@ -574,10 +561,6 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
     <div class="hd-progress" id="hdProgAfter"></div>
   </div>
   <div class="cards" id="afterCards"></div>
-  <div class="limitBar" id="limit3">
-    <div class="lb-row"><span class="lb-label" id="lb3Label"></span><span class="lb-time" id="lb3Time"></span></div>
-    <div class="lb-track"><div class="lb-fill" id="lb3Fill"></div></div>
-  </div>
 </div>
 
 <div class="screen" id="scrStamp">
@@ -709,7 +692,7 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 32;
+var APP_VERSION = 33;
 
 /* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
    上の APP_VERSION と隣り合っていると、版数を上げたときに
@@ -812,7 +795,7 @@ var DEFAULT_SETTINGS = {
   ],
   /* この時刻より前に開いたら おはようクエスト。過ぎたら きょうのクエストへ自動で切り替わる */
   morningUntil: '12:00',
-  /* クエスト① いえに ついたら すぐ やること（10ぷんの チャレンジ） */
+  /* クエスト① いえに ついたら すぐ やること */
   mainTasks: [
     {e:'👟', t:'くつを そろえる'},
     {e:'💧', t:'てあらい・うがい'},
@@ -828,18 +811,16 @@ var DEFAULT_SETTINGS = {
       {e:'👜', t:'サブバッグ'}
     ]}
   ],
-  /* クエスト② そのあと ゆっくり やること（7:45までの めやす） */
+  /* クエスト② そのあと ゆっくり やること。
+     noMachiko:1 の札は「まちこ先生の日」には出さない（2026-10-14 しげ指示＝ワークとごはんを入れない）。 */
   mainTasks2: [
     /* 押すと2択が出る札（walk:1）。どちらを選んでも「できた」になるが、
        「たちあるいた」を選んだ日は どうがタイムが walkPenaltyMin ぶん みじかくなる。 */
-    {e:'🍚', t:'ごはんを ぜんぶ たべる', sub:'たべるとき たちあるかない', walk:1},
+    {e:'🍚', t:'ごはんを ぜんぶ たべる', sub:'たべるとき たちあるかない', walk:1, noMachiko:1},
     {e:'🛁', t:'おふろに はいる', bath:1},
-    {e:'🎲', t:'しじまちゲーム'},
-    {e:'✏️', t:'ワークを する'}
+    {e:'🎲', t:'ぷちゲーム'},
+    {e:'✏️', t:'ワークを する', noMachiko:1}
   ],
-  /* チャレンジの持ち時間（ぷん）と、クエスト②の めやすの時刻 */
-  challengeMin: 10,
-  quest2By: '19:45',
   /* 休日（土日・祝日・園の長期休み）は、帰宅後ではなく1日の生活のクエストにする */
   holidayTasks: [
     {e:'👟', t:'くつを そろえる'},
@@ -860,10 +841,8 @@ var DEFAULT_SETTINGS = {
     {e:'🎒', t:'あしたの じゅんび', prep:1},
     {e:'📦', t:'おかたづけ', sub:'ゆかに おもちゃや ほんが ない'}
   ],
-  bedCutoff: '20:30',
-  /* ごほうび動画（どうがタイム）は、この時刻までに終わらせる。
-     クリアが遅いほど見られる時間が短くなる＝早く終わらせる理由になる。 */
-  videoEndBy: '20:15',
+  /* ごほうび動画までの 時間の しめきりは 置かない（v33・2026-10-14 しげ指示「実行期限をすべてなくして」）。
+     v32まであった 10ぷんチャレンジ・19:45・20:15・20:30 の4つを撤去した。 */
   rewardMin: 30,
   petitMin: 10,
   /* どの枠でどのチャンネルを出すかは、下の VIDEO_SOURCES で決める（PC側で管理）。
@@ -1047,9 +1026,15 @@ function calcRestDay(){
 function mainTaskList(){
   return (state.today && state.today.rest) ? state.settings.holidayTasks : state.settings.mainTasks;
 }
-/* クエスト②の札。休日は1枚の画面のままなので、②は使わない（空） */
+/* クエスト②の札。休日は1枚の画面のままなので、②は使わない（空）。
+   まちこ先生の日は noMachiko の札（ワーク・ごはん）を外す。
+   どちらの日かは おかえり画面で クエスト①より前に きめる＝クエスト②の途中で 札の並びが変わらない。 */
 function main2TaskList(){
-  return (state.today && state.today.rest) ? [] : state.settings.mainTasks2;
+  var all = state.settings.mainTasks2, out = [], i;
+  if (state.today && state.today.rest) return [];
+  if (!state.today || state.today.machiko !== true) return all;
+  for (i = 0; i < all.length; i++) { if (!all[i].noMachiko) out.push(all[i]); }
+  return out;
 }
 /* 休日は1枚の画面＝クエスト①だけで完了。平日は①→②の2枚 */
 function hasQuest2(){ return main2TaskList().length > 0; }
@@ -1066,18 +1051,7 @@ function rewardMinToday(){
   if (m < 0) m = 0;
   return m;
 }
-/* いま始めた場合に見られる時間。「終わりは videoEndBy」から逆算して短くする。
-   例＝終わり20:15・ふだん30ふんなら、19:45までにクリアすれば30ふん、
-   19:50なら25ふん、20:00なら15ふん。0いかなら、どうがタイムは無し。
-   いつ計っても「いまから見たら何分か」を返すので、始めた時刻が遅れても
-   終わりが videoEndBy を越えることはない。 */
-function rewardMinNow(){
-  var cap = videoEndByMin() - nowMin(), full = rewardMinToday();
-  if (cap < 0) cap = 0;
-  return (cap < full) ? cap : full;
-}
-
-/* ---------- ねる時間の判定（おやすみクエストの しめきり） ---------- */
+/* ---------- 時刻の読み取り（おはようクエストの時間帯に使う） ---------- */
 function hhmmToMin(text, defH, defM){
   var s = String(text || '').split(':');
   var h = parseInt(s[0], 10), m = parseInt(s[1], 10);
@@ -1085,14 +1059,10 @@ function hhmmToMin(text, defH, defM){
   if (isNaN(m)) m = defM;
   return h * 60 + m;
 }
-function bedCutoffMin(){ return hhmmToMin(state.settings.bedCutoff, 20, 30); }
-function videoEndByMin(){ return hhmmToMin(state.settings.videoEndBy, 20, 15); }
 function nowMin(){
   var d = new Date();
   return d.getHours() * 60 + d.getMinutes();
 }
-function bedTimeOver(){ return nowMin() > bedCutoffMin(); }
-function quest2ByMin(){ return hhmmToMin(state.settings.quest2By, 19, 45); }
 
 /* ---------- おはようクエストの時間帯 ----------
    morningUntil より前＝朝。過ぎたら おかえりクエストへ切り替える。
@@ -1111,6 +1081,16 @@ function syncBothForToday(){
     }
   }
   if (changed) save();
+}
+/* 版が上がった当日だけ使う。そら・パパ どちらかが1枚でも押している クエストは「きょうそう あり」 */
+function vsFromProgress(){
+  var t = state.today, ks = ['morning', 'main', 'main2', 'after'], i, r = {};
+  var sora = { morning: t.doneMorning, main: t.doneMain, main2: t.doneMain2, after: t.doneAfter };
+  var papa = { morning: t.pMorning, main: t.pMain, main2: t.pMain2, after: t.pAfter };
+  for (i = 0; i < ks.length; i++) {
+    if (!noneDone(sora[ks[i]]) || !noneDone(papa[ks[i]])) r[ks[i]] = true;
+  }
+  return r;
 }
 function morningUntilMin(){ return hhmmToMin(state.settings.morningUntil, 12, 0); }
 function isMorningTime(){ return nowMin() < morningUntilMin(); }
@@ -1149,7 +1129,8 @@ function backToMorningIfIdle(){
   if (!isMorningTime()) return false;
   if (t.phase !== 'welcome' && t.phase !== 'main') return false;
   if (morningTaskList().length === 0) return false;
-  if (t.chStart) return false;
+  /* おかえり画面で 日を えらんだあと（＝クエスト①を始めた）は 戻さない */
+  if (t.machiko === true || t.machiko === false) return false;
   if (!noneDone(t.doneMorning)) return false;
   if (!noneDone(t.doneMain) || !noneDone(t.doneMain2) || !noneDone(t.doneAfter)) return false;
   /* パパが 押し始めていても 戻さない（きょうそうが 始まっているため） */
@@ -1158,55 +1139,6 @@ function backToMorningIfIdle(){
   save();
   return true;
 }
-
-/* ---------- しめきりバー（のこり時間の棒グラフ） ----------
-   remainSec = のこり秒（マイナス＝過ぎている）／totalSec = 満タンのときの秒数。
-   棒の長さと数字とことばの3つで伝える（色だけに頼らない）。 */
-function drawLimitBar(boxId, labelId, timeId, fillId, label, remainSec, totalSec){
-  var box = $(boxId), r = remainSec, frac;
-  if (!box) return;
-  $(labelId).textContent = label;
-  frac = (totalSec > 0) ? (r / totalSec) : 0;
-  if (frac < 0) frac = 0;
-  if (frac > 1) frac = 1;
-  $(fillId).style.width = (frac * 100) + '%';
-  if (r < 0) {
-    box.className = 'limitBar over';
-    $(timeId).textContent = 'じかん オーバー';
-  } else {
-    box.className = 'limitBar' + (r <= 120 ? ' warn' : '');
-    $(timeId).textContent = fmtRemain(r * 1000);
-  }
-}
-/* クエスト①＝始めてから challengeMin ぷんの持ち時間 */
-function ch1RemainSec(){
-  var total = (state.settings.challengeMin || 10) * 60;
-  if (!state.today.chStart) return total;
-  return total - Math.floor((Date.now() - state.today.chStart) / 1000);
-}
-/* クエスト②・おやすみクエスト＝時計のしめきりまでの残り */
-function untilClockSec(limitMin){
-  var d = new Date();
-  return limitMin * 60 - (d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds());
-}
-function updateLimitBars(){
-  var ph = state.today.phase, total;
-  if (ph === 'main' && !state.today.rest) {
-    total = (state.settings.challengeMin || 10) * 60;
-    drawLimitBar('limit1', 'lb1Label', 'lb1Time', 'lb1Fill',
-      (state.settings.challengeMin || 10) + 'ぷん チャレンジ', ch1RemainSec(), total);
-  } else if (ph === 'main2') {
-    /* 満タンの基準は「クエスト①が終わった時刻からしめきりまで」＝始めた時点で満タンに見える */
-    total = state.today.q2Total || (30 * 60);
-    drawLimitBar('limit2', 'lb2Label', 'lb2Time', 'lb2Fill',
-      state.settings.quest2By + ' まで', untilClockSec(quest2ByMin()), total);
-  } else if (ph === 'after') {
-    total = state.today.afterTotal || (30 * 60);
-    drawLimitBar('limit3', 'lb3Label', 'lb3Time', 'lb3Fill',
-      state.settings.bedCutoff + ' までに ねる', untilClockSec(bedCutoffMin()), total);
-  }
-}
-
 
 /* きょう最初に出す画面。
    朝＝おはようクエスト（平日と休日で札がちがう）／
@@ -1230,8 +1162,10 @@ function newToday(t){
     rest: r,
     sento: false,
     walked: false,  /* ごはんのとき たちあるいたか（どうがタイムを みじかくする） */
-    chStart: null,   /* チャレンジを始めた時刻 */
-    chWin: null,     /* 10ぷん以内に クエスト①を終えたか */
+    /* おかえり画面で えらんだ日。null＝まだ／false＝ふつうの日／true＝まちこ先生の日 */
+    machiko: null,
+    /* クエストごとの「パパと競争する？」の こたえ（true＝はい／false＝いいえ／無い＝まだ聞いていない） */
+    vs: {},
     newBug: null,    /* きょう ずかんに入った虫の id（演出のため） */
     bugShown: false  /* その演出を見せ終わったか（同じ日に2回出さない） */
   };
@@ -1269,6 +1203,11 @@ function ensureToday(){
   if (!state.today.pMain2) { state.today.pMain2 = []; save(); }
   if (!state.today.pAfter) { state.today.pAfter = []; save(); }
   if (!state.today.win) { state.today.win = {}; save(); }
+  /* v32までの「きょう」には「パパと競争する？」の こたえと 日の えらびが無いので、ここで足す。
+     もう押し始めている クエストは v32と同じ（きょうそう あり）として扱う＝途中で 聞き直さない。
+     チャレンジを始めていた日は「ふつうの日」として扱う＝札の並びを 変えない。 */
+  if (!state.today.vs) { state.today.vs = vsFromProgress(); save(); }
+  if (state.today.machiko === undefined) { state.today.machiko = state.today.chStart ? false : null; save(); }
   /* ふたり共通の札は、版が上がる前に そらが押していた分を パパへも写す。
      写さないと その札は「できた」の見た目のままで パパが押せず、
      その日は パパが そのクエストを 勝てなくなる（版を上げた当日だけの話）。 */
@@ -1793,19 +1732,11 @@ function fmtHM(min){
 
 /* ---------- 画面切替 ---------- */
 function showScreen(id){
-  var ids = ['scrMorning','scrMorningEnd','scrWelcome','scrMain','scrMain2','scrVideo','scrAfter','scrStamp','scrZukan','scrNight'], i;
+  var ids = ['scrMorning','scrMorningEnd','scrWelcome','scrVsAsk','scrMain','scrMain2','scrVideo','scrAfter','scrStamp','scrZukan','scrNight'], i;
   if (id !== 'scrVideo') setBigVid(false);
-  /* 下にしめきりバーが出る画面は、札が隠れないよう余白を足す */
-  var withBar = { scrMain: 1, scrMain2: 1, scrAfter: 1 };
-  var barOn = withBar[id] && !(id === 'scrMain' && state.today.rest);
   for (i = 0; i < ids.length; i++) {
-    if (ids[i] === id) $(ids[i]).className = 'screen on' + (barOn ? ' hasBar' : '');
-    else $(ids[i]).className = 'screen';
+    $(ids[i]).className = (ids[i] === id) ? 'screen on' : 'screen';
   }
-  /* 使わないバーは隠す */
-  $('limit1').style.display = (id === 'scrMain' && barOn) ? 'block' : 'none';
-  $('limit2').style.display = (id === 'scrMain2') ? 'block' : 'none';
-  $('limit3').style.display = (id === 'scrAfter') ? 'block' : 'none';
 }
 function hideOverlays(){
   $('ovBug').className = 'ov';
@@ -1923,13 +1854,16 @@ function onPartTap(kind, idx, task, j, btn, card){
    1枚の札を 1行にし、左にそらの札、右にパパの札を置く。
    both の札（れんらくちょう）だけは 左右にまたがる1枚にする。 */
 function buildCards(containerId, tasks, kind){
-  var box = $(containerId), i, row;
+  var box = $(containerId), i, row, vs = isVs(kind);
   while (box.firstChild) box.removeChild(box.firstChild);
-  box.appendChild(buildVsHead());
+  /* 「パパと競争する？」で いいえ＝れつの見出しも パパの札も 出さない */
+  if (vs) box.appendChild(buildVsHead());
   for (i = 0; i < tasks.length; i++) {
     row = document.createElement('div');
     row.className = 'vsRow';
-    if (tasks[i].both) {
+    if (!vs) {
+      row.appendChild(buildCard(kind, i, tasks[i], 'solo'));
+    } else if (tasks[i].both) {
       row.appendChild(buildCard(kind, i, tasks[i], 'both'));
     } else {
       row.appendChild(buildCard(kind, i, tasks[i], 'sora'));
@@ -1947,7 +1881,7 @@ function buildVsHead(){
   return h;
 }
 /* who = 'sora'（今までどおりの仕掛けつき）／'papa'（押すだけ）／
-   'both'（ふたり共通・左右にまたがる）。
+   'both'（ふたり共通・左右にまたがる）／'solo'（きょうそう なし＝そらの札を 左右いっぱいに・名前なし）。
    パパの札に 2択や 中のボタンを 置かない理由＝せんとう・たちあるきの2択は
    そらの どうがタイムの長さを決めるものだから。札の数は 両方とも おなじ。 */
 function buildCard(kind, idx, task, who){
@@ -1955,7 +1889,7 @@ function buildCard(kind, idx, task, who){
   var done = !!arr[idx], full = (who !== 'papa');
   var card = document.createElement('div'), em, tx, stamp, sub, nameEl;
   var asSento = full && !!task.bath && done && state.today && state.today.sento;
-  card.className = 'card' + (done ? ' done' : '') + (who === 'both' ? ' both' : '');
+  card.className = 'card' + (done ? ' done' : '') + (who === 'both' ? ' both' : '') + (who === 'solo' ? ' solo' : '');
   nameEl = document.createElement('div'); nameEl.className = 'c-who';
   nameEl.textContent = (who === 'both') ? 'そらと パパ' : whoName(who);
   em = document.createElement('div'); em.className = 'c-emoji';
@@ -1964,7 +1898,9 @@ function buildCard(kind, idx, task, who){
   tx.textContent = asSento ? 'せんとうに いく' : task.t;
   stamp = document.createElement('div'); stamp.className = 'c-stamp';
   stamp.textContent = '💮';
-  card.appendChild(nameEl); card.appendChild(em); card.appendChild(tx);
+  /* そらだけの クエストでは 名前を 出さない（だれの札か まよわない） */
+  if (who !== 'solo') card.appendChild(nameEl);
+  card.appendChild(em); card.appendChild(tx);
   if (full && task.bath && !done) {
     sub = document.createElement('div'); sub.className = 'c-sub';
     sub.textContent = '♨️せんとうなら ＋' + (state.settings.sentoBonusMin || 5) + 'ふん';
@@ -1991,6 +1927,7 @@ function renderVs(elId, kind){
   while (el.firstChild) el.removeChild(el.firstChild);
   el.className = 'hd-progress vsScore';
   el.appendChild(scoreSpan('そら', countDone(doneOf(kind), tasks.length), tasks.length));
+  if (!isVs(kind)) return;   /* きょうそう なし＝そらの かずだけ */
   el.appendChild(scoreSpan('パパ', countDone(doneOfP(kind), tasks.length), tasks.length));
   w = winnerOf(kind);
   if (w) {
@@ -2043,6 +1980,35 @@ function allDoneFor(kind, who){
   for (i = 0; i < tasks.length; i++) { if (!arr[i]) return false; }
   return true;
 }
+/* そのクエストを パパと きょうそう するか（「パパと競争する？」で はい を えらんだか） */
+function isVs(kind){ return !!(state.today && state.today.vs && state.today.vs[kind] === true); }
+/* まだ「パパと競争する？」を聞いていないクエストか（札が0枚のクエストは聞かない） */
+function needVsAsk(kind){
+  if (!state.today.vs) state.today.vs = {};
+  if (state.today.vs[kind] === true || state.today.vs[kind] === false) return false;
+  return tasksOf(kind).length > 0;
+}
+function questName(kind){
+  if (kind === 'morning') return 'おはよう クエスト';
+  if (kind === 'main') return hasQuest2() ? 'クエスト\u2460' : 'きょうの クエスト';
+  if (kind === 'main2') return 'クエスト\u2461';
+  return 'おやすみクエスト';
+}
+var vsAskKind = null;
+function showVsAsk(kind){
+  vsAskKind = kind;
+  showScreen('scrVsAsk');
+  $('hdDateQ').textContent = dateLabel() + (state.today.rest ? '　🌞おやすみのひ' : '');
+  $('vsAskTitle').textContent = questName(kind);
+}
+function answerVs(yes){
+  if (!vsAskKind) return;
+  state.today.vs[vsAskKind] = !!yes;
+  vsAskKind = null;
+  sndTap();
+  save();
+  render();
+}
 function winnerOf(kind){
   if (!state.today.win) state.today.win = {};
   return state.today.win[kind] || null;
@@ -2050,6 +2016,7 @@ function winnerOf(kind){
 /* さきに ぜんぶ おわった ほうを 1回だけ 記録する。
    新しく きまったときだけ 'sora'／'papa' を返す（すでに きまっていれば null）。 */
 function settleWinner(kind){
+  if (!isVs(kind)) return null;   /* きょうそう なし＝かちは つくらない */
   if (winnerOf(kind)) return null;
   var w = null;
   if (allDoneFor(kind, 'sora')) w = 'sora';
@@ -2071,6 +2038,12 @@ function winLine(kind){
   var w = winnerOf(kind);
   if (!w) return null;
   return { text: '🏆 ' + whoName(w) + 'の かち！', bold: true };
+}
+/* きょう パパと きょうそう した クエストが 1つでも あったか */
+function anyVsToday(){
+  var ks = ['morning', 'main', 'main2', 'after'], i;
+  for (i = 0; i < ks.length; i++) { if (isVs(ks[i])) return true; }
+  return false;
 }
 /* きょう 何回ずつ かったか（おやすみの画面で出す） */
 function winTally(){
@@ -2167,8 +2140,8 @@ function onPapaTap(kind, idx, el){
   afterProgress(kind);
 }
 function finishTask(kind, idx, el, tasks, done){
-  /* ふたり共通の札は 左右にまたがる形（both）のままにする */
-  var base = 'card done' + (tasks[idx].both ? ' both' : '');
+  /* 札の はばの形（solo＝そらだけ／both＝ふたり共通）は そのまま残す */
+  var base = 'card done' + ((el.className.indexOf('solo') >= 0) ? ' solo' : (tasks[idx].both ? ' both' : ''));
   done[idx] = true;
   /* ふたり共通の札は パパのぶんも いっしょに できたにする */
   if (tasks[idx].both) doneOfP(kind)[idx] = true;
@@ -2228,50 +2201,34 @@ function completeMorning(){
   sndSmallFanfare();
   render();
 }
-function startChallenge(){
-  state.today.chStart = Date.now();
+/* おかえり画面＝「ふつうの日」か「まちこ先生の日」を えらぶと クエスト①へ進む */
+function chooseDay(machiko){
+  state.today.machiko = !!machiko;
   state.today.phase = 'main';
+  sndTap();
   save();
   render();
 }
 function completeMain(){
   if (state.today.phase !== 'main') return;
-  /* 10ぷんチャレンジの結果を残す（できなくても とがめない＝記録だけ） */
-  if (!state.today.rest && state.today.chStart) {
-    state.today.chWin = (ch1RemainSec() >= 0);
-  }
   if (hasQuest2()) {
     state.today.phase = 'main2';
-    /* クエスト②のバーは、始めた時点を満タンにする */
-    var left = untilClockSec(quest2ByMin());
-    state.today.q2Total = (left > 60) ? left : 60;
     save();
     sndSmallFanfare();
     /* 先に画面を描き替えてから お祝いを出す。
        逆にすると render() の中の hideOverlays() で消えてしまう（2026-08-27実測）。 */
     render();
+    /* クエスト①の おわりは いつも お祝いを出す（きょうそうの けっかが あれば その1行も）。
+       このあと クエスト②の画面へ移ると とくてん表が入れかわって 見えなくなるため。 */
     var wl = winLine('main'), ls = [];
-    if (state.today.chWin) {
-      if (wl) ls.push(wl);
-      ls.push({ text: 'クエスト\u2460 クリア！', bold: true });
-      ls.push({ text: 'つぎは クエスト\u2461 だよ' });
-      showCeleb({
-        emoji: '\u23F0', title: state.settings.challengeMin + 'ぷん いない！',
-        lines: ls,
-        btn: 'クエスト\u2461へ \u25B6',
-        onBtn: function(){ hideCeleb(); }
-      });
-      confetti();
-    } else if (wl) {
-      /* 10ぷんには 届かなかった日でも、きょうそうの けっかは 必ず出す
-         （このあと クエスト\u2461の画面へ移ると とくてん表が入れかわるため） */
-      showCeleb({
-        emoji: '🏆', title: 'クエスト\u2460 クリア！',
-        lines: [wl, { text: 'つぎは クエスト\u2461 だよ' }],
-        btn: 'クエスト\u2461へ \u25B6',
-        onBtn: function(){ hideCeleb(); }
-      });
-    }
+    if (wl) ls.push(wl);
+    ls.push({ text: 'つぎは クエスト\u2461 だよ' });
+    showCeleb({
+      emoji: wl ? '🏆' : '💮', title: 'クエスト\u2460 クリア！',
+      lines: ls,
+      btn: 'クエスト\u2461へ \u25B6',
+      onBtn: function(){ hideCeleb(); }
+    });
     return;
   }
   finishAllMain();
@@ -2324,7 +2281,7 @@ function dayPick(list){
   return list[n % list.length];
 }
 function celeb1Contents(){
-  var lines = [], mins = rewardMinNow(), wl = winLine(hasQuest2() ? 'main2' : 'main');
+  var lines = [], mins = rewardMinToday(), wl = winLine(hasQuest2() ? 'main2' : 'main');
   if (wl) lines.push(wl);
   lines.push({ text: dayPick(PRAISE_MAIN) });
   if (state.today.sento) {
@@ -2333,20 +2290,6 @@ function celeb1Contents(){
   if (state.today.walked) {
     lines.push({ text: '🚶 たちあるいた －' + walkPenaltyMin() + 'ふん', bold: true });
   }
-  if (mins <= 0) {
-    /* 終わり時刻を過ぎている＝どうがタイムは無し。責めずに次へ送る */
-    lines.push({ text: 'きょうは どうがタイムの じかんが すぎちゃった' });
-    lines.push({ text: 'つぎは おやすみクエスト だよ' });
-    return {
-      hanamaru: true, title: 'はなまる！', lines: lines,
-      btn: 'つぎへ ▶',
-      onBtn: function(){ state.today.phase = 'after'; save(); render(); }
-    };
-  }
-  if (mins < rewardMinToday()) {
-    /* 短くなった理由を、責めずに事実として伝える */
-    lines.push({ text: 'おわりは ' + state.settings.videoEndBy + ' まで だよ' });
-  }
   lines.push({ text: 'どうがタイム ' + mins + 'ふん！' });
   return {
     hanamaru: true, title: 'はなまる！', lines: lines,
@@ -2354,17 +2297,9 @@ function celeb1Contents(){
     onBtn: function(){ state.today.phase = 'video1'; save(); render(); }
   };
 }
+/* おやすみクエストを おえたら、時刻に かかわらず ピタゴラタイムへ（v33で ねる時間の しめきりを撤去） */
 function completeAfter(){
   if (state.today.phase !== 'after') return;
-  if (bedTimeOver()) {
-    /* ねる時間を過ぎた＝ピタゴラタイムとスタンプは無しで、そのままおやすみへ */
-    state.today.bedOk = false;
-    state.today.phase = 'night';
-    save();
-    render();
-    return;
-  }
-  state.today.bedOk = true;
   state.today.phase = 'celeb2';
   save();
   render();
@@ -2387,7 +2322,7 @@ function videoConf(){
   if (state.today.phase === 'video1') {
     return {
       kind: 1, title: 'どうがタイム',
-      minutes: rewardMinNow(),
+      minutes: rewardMinToday(),
       linkFallback: MAIN_LINK_URL
     };
   }
@@ -2404,13 +2339,6 @@ function renderVideo(){
   while (box.firstChild) box.removeChild(box.firstChild);
   $('vidNote').textContent = '';
   if (!state.today.endAt) {
-    if (c.kind === 1 && c.minutes <= 0) {
-      /* スタートを押さないまま終わり時刻を過ぎた場合も、ここで次へ送る */
-      state.today.phase = 'after';
-      save();
-      render();
-      return;
-    }
     setBigVid(false);
     $('vidRemain').textContent = fmtRemain(c.minutes * 60000);
     setRing(c.minutes * 60000, c.minutes * 60000);
@@ -2653,7 +2581,6 @@ function tick(){
   /* 逆に、まだ何も始めていない朝なら おはようクエストへ戻す（版を上げた当日の取りこぼし対策） */
   if (backToMorningIfIdle()) { render(); return; }
   var ph = state.today.phase;
-  if (ph === 'main' || ph === 'main2' || ph === 'after') updateLimitBars();
   if ((ph === 'video1' || ph === 'video2') && state.today.endAt) {
     var c = videoConf();
     var remain = state.today.endAt - Date.now();
@@ -2684,6 +2611,11 @@ function render(){
   $('hdDate').textContent = dateLabel() + (state.today.rest ? '　🌞おやすみのひ' : '');
   hideOverlays();
   var ph = state.today.phase;
+  /* クエストを はじめる前に「パパと競争する？」を聞く（まだ こたえていない クエストだけ） */
+  if ((ph === 'morning' || ph === 'main' || ph === 'main2' || ph === 'after') && needVsAsk(ph)) {
+    showVsAsk(ph);
+    return;
+  }
   if (ph === 'morning') {
     showScreen('scrMorning');
     $('hdDateM').textContent = dateLabel() + (state.today.rest ? '　🌞おやすみのひ' : '');
@@ -2702,15 +2634,12 @@ function render(){
   } else if (ph === 'welcome') {
     showScreen('scrWelcome');
     $('hdDateW').textContent = dateLabel();
-    $('welcomeMsg').textContent = (state.settings.challengeMin || 10) + 'ぷんで カード' +
-      mainTaskList().length + 'まい クリアできるかな？';
   } else if (ph === 'main') {
     showScreen('scrMain');
     /* 休日は1枚の画面なので、番号を付けない */
     $('hdTitle1').textContent = hasQuest2() ? 'クエスト①' : 'きょうの クエスト';
     buildCards('mainCards', mainTaskList(), 'main');
     renderVs('hdProg', 'main');
-    updateLimitBars();
   } else if (ph === 'main2' || ph === 'celeb1') {
     /* 休日は②が無いので、はなまるは①の画面の上に出す */
     if (hasQuest2()) {
@@ -2724,7 +2653,6 @@ function render(){
       buildCards('mainCards', mainTaskList(), 'main');
       renderVs('hdProg', 'main');
     }
-    updateLimitBars();
     if (ph === 'celeb1') {
       showCeleb(celeb1Contents());
       confetti();
@@ -2737,13 +2665,6 @@ function render(){
     showScreen('scrAfter');
     buildCards('afterCards', state.settings.afterTasks, 'after');
     renderVs('hdProgAfter', 'after');
-    /* おやすみクエストのバーは、この画面に入った時点を満タンにする */
-    if (!state.today.afterTotal) {
-      var left = untilClockSec(bedCutoffMin());
-      state.today.afterTotal = (left > 60) ? left : 60;
-      save();
-    }
-    updateLimitBars();
     if (ph === 'celeb2') {
       showCeleb(celeb2Contents());
       sndSmallFanfare();
@@ -2794,21 +2715,16 @@ function drawMorningEnd(){
 var nightDrawn = '';
 function drawNight(){
   /* きょうの きょうそうの けっか（クエストごとに さきに おわった ほうを かぞえる）。
-     花丸と違って 毎回書き直す＝開き直しても けっかが 見えるように。 */
+     花丸と違って 毎回書き直す＝開き直しても けっかが 見えるように。
+     パパと きょうそう した クエストが 1つも無い日は 出さない。 */
   var tl = winTally();
-  $('nightScore').textContent = 'きょうの きょうそう　そら ' + tl.sora + 'かい　パパ ' + tl.papa + 'かい';
+  $('nightScore').textContent = anyVsToday() ?
+    ('きょうの きょうそう　そら ' + tl.sora + 'かい　パパ ' + tl.papa + 'かい') : '';
   if (nightDrawn === state.today.date) return;
   nightDrawn = state.today.date;
-  var ok = !state.today || state.today.bedOk !== false;
-  $('nightTitle').textContent = ok ? 'きょうも さいごまで やりきりました！' :
-    'きょうは ここまで。もう ねる じかん！';
-  $('nightSub').textContent = ok ? 'おうちのひとと ハイタッチ！ ✋' :
-    'あしたは ８じはんまでに ねよう ⏰';
-  /* 間に合わなかった日は、花丸と紙吹雪は出さない（ごほうびの意味を守る）。音だけやさしく鳴らす */
-  if (ok) {
-    drawHanamaru($('svgNight'));
-    confetti();
-  }
+  /* v33で ねる時間の しめきりを撤去したので、おやすみの画面は いつも「やりきった」の形 */
+  drawHanamaru($('svgNight'));
+  confetti();
   sndNight();
 }
 
@@ -2969,10 +2885,8 @@ var PRAISE_HINTS = [
 function openSettings(){
   $('praiseHint').textContent = dayPick(PRAISE_HINTS);
   var chTxt = '';
-  if (!state.today.rest && state.today.chWin !== null && state.today.chWin !== undefined) {
-    chTxt = ' ' + (state.settings.challengeMin || 10) + '分チャレンジ＝' +
-      (state.today.chWin ? '成功' : '時間内は未達（記録のみ・とがめない設計）') + '。';
-  }
+  if (!state.today.rest && state.today.machiko === true) chTxt = 'まちこ先生の日（クエスト②の ワーク・ごはんは なし）。 ';
+  else if (!state.today.rest && state.today.machiko === false) chTxt = 'ふつうの日。 ';
   $('dayInfo').textContent = chTxt + (state.today.rest ?
       '休日パターン（土日・祝日・園の長期休み）で表示中。' :
       '平日パターンで表示中。') +
@@ -3023,7 +2937,10 @@ bindTap($('btnCeleb'), function(){
 });
 bindTap($('cfYes'), function(){ $('ovConfirm').className = 'ov'; if (cfCb) cfCb(true); cfCb = null; });
 bindTap($('cfNo'), function(){ $('ovConfirm').className = 'ov'; if (cfCb) cfCb(false); cfCb = null; });
-bindTap($('btnChallenge'), startChallenge);
+bindTap($('btnDayNormal'), function(){ chooseDay(false); });
+bindTap($('btnDayMachiko'), function(){ chooseDay(true); });
+bindTap($('btnVsYes'), function(){ answerVs(true); });
+bindTap($('btnVsNo'), function(){ answerVs(false); });
 /* おわりの画面から きょうのクエストへ（朝のうちに手で進めたいとき用。
    時間が来れば syncMorningPhase が自動で切り替える） */
 bindTap($('btnMorningGo'), function(){
@@ -3116,12 +3033,15 @@ $('btnToggleRest').addEventListener('click', function(){
        札はできたまま かちだけ無くなり、夜のかぞえが合わなくなる。 */
     state.today.pMain = [];
     if (state.today.win) delete state.today.win.main;
+    /* やり直すクエストは「パパと競争する？」も 聞き直す */
+    if (state.today.vs) delete state.today.vs.main;
     state.today.sento = false;
     /* 朝の画面から切り替えたときは、朝の札も入れかわる＝チェックを消して出し直す */
     if (atMorning) {
       state.today.doneMorning = [];
       state.today.pMorning = [];
       if (state.today.win) delete state.today.win.morning;
+      if (state.today.vs) delete state.today.vs.morning;
       state.today.parts = {};
       partsOpen = {};
       state.today.phase = startPhase(state.today.rest);

@@ -37,16 +37,21 @@ var FAKE_MIN = 17 * 60 + 0;     /* 17:00 */
 nowMin = function(){ return FAKE_MIN; };
 todayStr = function(){ return '2026-09-16'; };
 
-var ANSWER = true, LASTCONFIRM = '';
-askConfirm = function(msg, y, n, cb){ LASTCONFIRM = msg; cb(ANSWER); };
+var ANSWER = true, LASTCONFIRM = '', CONFIRMLOG = [];
+askConfirm = function(msg, y, n, cb){ LASTCONFIRM = msg; CONFIRMLOG.push(msg); cb(ANSWER); };
 
 /* ---- 道具（無いものは null／-1／(なし) を返す＝例外にしない） ---- */
-function setDay(rest, phase){
+/* vs＝「パパと競争する？」の こたえ。省略＝どのクエストも はい（v31〜v32の試験をそのまま使う）／
+   'ask'＝まだ聞いていない／'solo'＝どのクエストも いいえ */
+function setDay(rest, phase, vs){
   calcRestDay = function(){ return rest; };
   state.today = null;
   state.stamps = 0; state.lastStampDate = ''; state.lastBugDate = '';
   ensureToday();
   state.today.rest = rest;
+  if (vs === 'ask') state.today.vs = {};
+  else if (vs === 'solo') state.today.vs = { morning: false, main: false, main2: false, after: false };
+  else state.today.vs = { morning: true, main: true, main2: true, after: true };
   if (phase) state.today.phase = phase;
   partsOpen = {};
   save();
@@ -256,7 +261,7 @@ step('T6', function(){
   ok('T6-8 せんとうボーナスは そらの2択で効く', state.today.sento === true);
   eq('T6-9 どうがタイムは35ふん', rewardMinToday(), 35);
   eq('T6-10 はなまるの次は どうがタイム', celeb1Contents().btn, 'どうがタイムへ ▶');
-  ok('T6-11 見られる分数が0より多い', rewardMinNow() > 0, 'mins=' + rewardMinNow());
+  ok('T6-11 見られる分数が0より多い', rewardMinToday() > 0, 'mins=' + rewardMinToday());
 });
 
 /* ============================================================
@@ -330,13 +335,15 @@ step('T9b', function(){
   render();
   ok('T9-12 おやすみ画面が出る', $('scrNight').className.indexOf('on') >= 0);
 });
+/* T9c・T9d は v33 で中身を入れかえた（しげ指示「ごほうび動画までの実行期限をすべてなくして」）。
+   v32までは「20:30を過ぎたら ピタゴラなし」「20:15を過ぎたら どうがタイム0ふん」を確かめていた。 */
 step('T9c', function(){
   FAKE_MIN = 20 * 60 + 45;
   setDay(false, 'after');
   ANSWER = true;
   tapAllSora('after', 'afterCards');
-  eq('T9-13 ねる時間を過ぎたら まっすぐ おやすみへ', state.today.phase, 'night');
-  ok('T9-14 bedOk は false', state.today.bedOk === false);
+  eq('T9-13 20:45に おえても ピタゴラタイムへ進む（ねる時間の しめきりは無い）', state.today.phase, 'celeb2');
+  ok('T9-14 ピタゴラタイムの ことばが出る', txt('celebLines').indexOf('ピタゴラタイム') >= 0, txt('celebLines'));
   FAKE_MIN = 17 * 60;
 });
 step('T9d', function(){
@@ -344,7 +351,8 @@ step('T9d', function(){
   setDay(false, 'main2');
   ANSWER = true;
   tapAllSora('main2', 'main2Cards');
-  eq('T9-15 どうがタイムは0ふん', rewardMinNow(), 0);
+  eq('T9-15 20:30に おえても どうがタイムは みじかくならない', celeb1Contents().btn, 'どうがタイムへ ▶');
+  ok('T9-15b はなまるの分数は35ふん（せんとう）', txt('celebLines').indexOf('どうがタイム 35ふん！') >= 0, txt('celebLines'));
   FAKE_MIN = 17 * 60;
 });
 step('T9e', function(){
@@ -445,6 +453,214 @@ step('T11', function(){
   ok('T11-5 動画の枠は作らない', mountPlayer.toString().indexOf('{}') > 0 ||
      mountPlayer.toString().replace(/\s/g, '').indexOf('function(){}') >= 0,
      mountPlayer.toString().slice(0, 40));
+});
+
+/* ============================================================
+   T12〜T17 v33（2026-10-14 しげ指示）
+   ①ごほうび動画までの実行期限をすべてなくす
+   ②すべてのクエストで「パパと競争する？」を聞き、はい／いいえ で パパの れつを出し分ける
+   ③おかえり画面の「ふつうの日」「まちこ先生の日」＝後者は ワークと ごはんを 入れない
+   ④「しじまちゲーム」を「ぷちゲーム」へ
+   ============================================================ */
+function isOn(id){ var e = $(id); return !!e && e.className.indexOf('on') >= 0; }
+function headCount(id){
+  var box = $(id), n = 0, i;
+  if (!box) return -1;
+  for (i = 0; i < box.childNodes.length; i++) { if (box.childNodes[i].className === 'vsHead') n++; }
+  return n;
+}
+
+/* T12 「パパと競争する？」の確認画面 */
+step('T12a', function(){
+  setDay(false, 'morning', 'ask');
+  ok('T12-1 おはようクエストの前に 確認画面が出る', isOn('scrVsAsk'), $('scrVsAsk').className);
+  ok('T12-2 札の画面は まだ出ない', !isOn('scrMorning'));
+  eq('T12-3 確認画面の題は おはよう クエスト', txt('vsAskTitle'), 'おはよう クエスト');
+  ok('T12-4 ことばは「パパと競争する？」', txt('scrVsAsk').indexOf('パパと競争する？') >= 0, txt('scrVsAsk'));
+  eq('T12-5 はい の ボタン', txt('btnVsYes'), 'はい');
+  eq('T12-6 いいえ の ボタン', txt('btnVsNo'), 'いいえ');
+  click($('btnVsYes'));
+  ok('T12-7 はい が記録される', state.today.vs.morning === true);
+  ok('T12-8 札の画面が出る', isOn('scrMorning'));
+  eq('T12-9 はい＝2れつ', rowLen('morningCards', 0), 2);
+  eq('T12-10 れつの見出しが出る', headCount('morningCards'), 1);
+});
+step('T12b', function(){
+  setDay(false, 'main', 'ask');
+  eq('T12-11 クエスト①の前にも聞く', txt('vsAskTitle'), 'クエスト①');
+  click($('btnVsYes'));
+  ANSWER = true;
+  tapAllSora('main', 'mainCards');
+  eq('T12-12 クエスト①のあと クエスト②へ', state.today.phase, 'main2');
+  ok('T12-13 クエスト②の前にも聞く', isOn('scrVsAsk'));
+  eq('T12-14 題は クエスト②', txt('vsAskTitle'), 'クエスト②');
+  ok('T12-15 クエスト①クリアの お祝いが 上に出ている', $('ovCeleb').className.indexOf('on') >= 0);
+  click($('btnVsNo'));
+  ok('T12-16 クエスト②は いいえ が記録される', state.today.vs.main2 === false);
+  ok('T12-17 クエスト①の こたえは そのまま', state.today.vs.main === true);
+  eq('T12-18 クエスト②は1れつ', rowLen('main2Cards', 0), 1);
+});
+step('T12c', function(){
+  setDay(false, 'after', 'ask');
+  eq('T12-19 おやすみクエストの前にも聞く', txt('vsAskTitle'), 'おやすみクエスト');
+  setDay(true, 'main', 'ask');
+  eq('T12-20 休日のクエストの前にも聞く', txt('vsAskTitle'), 'きょうの クエスト');
+  setDay(true, 'morning', 'ask');
+  eq('T12-21 休日の朝の前にも聞く', txt('vsAskTitle'), 'おはよう クエスト');
+  ok('T12-22 休日のクエスト②（札0枚）は聞かない', needVsAsk('main2') === false);
+});
+
+/* T13 いいえ＝パパの れつを 出さない */
+step('T13a', function(){
+  setDay(false, 'morning', 'ask');
+  click($('btnVsNo'));
+  ok('T13-1 いいえ が記録される', state.today.vs.morning === false);
+  eq('T13-2 れつの見出しは出ない', headCount('morningCards'), 0);
+  eq('T13-3 行の数は8のまま', rowsOf('morningCards').length, 8);
+  eq('T13-4 どの行も そらの札1枚', rowLen('morningCards', 0), 1);
+  ok('T13-5 札は 左右いっぱい（solo）', cardCls('morningCards', 0, 'sora').indexOf('solo') >= 0, cardCls('morningCards', 0, 'sora'));
+  ok('T13-6 れんらくちょうも solo（またがりではない）',
+     cardCls('morningCards', 4, 'sora').indexOf('solo') >= 0 && cardCls('morningCards', 4, 'sora').indexOf('both') < 0,
+     cardCls('morningCards', 4, 'sora'));
+  var c0 = cardAt('morningCards', 0, 'sora');
+  eq('T13-7 札に名前を出さない（1つめは絵文字）', c0 && c0.childNodes[0].className, 'c-emoji');
+  eq('T13-8 とくてん表は そらだけ', nlen('hdProgM'), 1);
+  ok('T13-9 とくてん表の文字', nth('hdProgM', 0).indexOf('そら 0／8') === 0, nth('hdProgM', 0));
+  tap('morningCards', 0, 'sora');
+  ok('T13-10 押したあとも solo のまま', cardCls('morningCards', 0, 'sora').indexOf('solo') >= 0 &&
+     cardCls('morningCards', 0, 'sora').indexOf('done') >= 0, cardCls('morningCards', 0, 'sora'));
+  tapAllSora('morning', 'morningCards');
+  eq('T13-11 そらが おえると 画面が進む', state.today.phase, 'morningEnd');
+  ok('T13-12 かちは つくらない', winnerOf('morning') === null, 'win=' + winnerOf('morning'));
+  eq('T13-13 いってらっしゃいに かちの行は出ない', txt('mEndWin'), '');
+});
+step('T13b', function(){
+  setDay(false, 'main', 'solo');
+  ANSWER = true;
+  tapAllSora('main', 'mainCards');
+  eq('T13-14 クエスト②へ進む', state.today.phase, 'main2');
+  eq('T13-15 クエスト①クリアの お祝いは出る', txt('celebTitle'), 'クエスト① クリア！');
+  ok('T13-16 お祝いに かちの行は無い', txt('celebLines').indexOf('🏆') < 0, txt('celebLines'));
+  tapAllSora('main2', 'main2Cards');
+  eq('T13-17 はなまるへ', state.today.phase, 'celeb1');
+  ok('T13-18 はなまるに かちの行は無い', txt('celebLines').indexOf('🏆') < 0, txt('celebLines'));
+  state.today.phase = 'night';
+  nightDrawn = '';
+  render();
+  eq('T13-19 きょうそうしなかった日は おやすみ画面に けっかを出さない', txt('nightScore'), '');
+});
+step('T13c', function(){
+  setDay(false, 'night', 'solo');
+  state.today.vs.morning = true;
+  state.today.win = { morning: 'sora' };
+  nightDrawn = '';
+  render();
+  eq('T13-20 1つでも きょうそうした日は けっかを出す', txt('nightScore'), 'きょうの きょうそう　そら 1かい　パパ 0かい');
+});
+
+/* T14 おかえり画面の「ふつうの日」「まちこ先生の日」 */
+step('T14a', function(){
+  setDay(false, 'welcome', 'ask');
+  ok('T14-1 おかえり画面が出る', isOn('scrWelcome'));
+  eq('T14-2 ふつうの日 の ボタン', txt('btnDayNormal'), 'ふつうの日');
+  eq('T14-3 まちこ先生の日 の ボタン', txt('btnDayMachiko'), 'まちこ先生の日');
+  ok('T14-4 10ぷんの ことばは出ない', txt('scrWelcome').indexOf('ぷん') < 0, txt('scrWelcome'));
+  ok('T14-5 チャレンジの ボタンは無い', !$('btnChallenge'));
+  click($('btnDayMachiko'));
+  ok('T14-6 まちこ先生の日が記録される', state.today.machiko === true);
+  eq('T14-7 クエスト①へ進む', state.today.phase, 'main');
+  ok('T14-8 クエスト①の前に きょうそうの確認', isOn('scrVsAsk'));
+  click($('btnVsYes'));
+  eq('T14-9 クエスト①は5枚のまま', mainTaskList().length, 5);
+  eq('T14-10 クエスト②は2枚', main2TaskList().length, 2);
+  eq('T14-11 1枚目は おふろ', main2TaskList()[0] && main2TaskList()[0].t, 'おふろに はいる');
+  eq('T14-12 2枚目は ぷちゲーム', main2TaskList()[1] && main2TaskList()[1].t, 'ぷちゲーム');
+  ANSWER = true;
+  tapAllSora('main', 'mainCards');
+  click($('btnVsYes'));
+  eq('T14-13 クエスト②の行は2', rowsOf('main2Cards').length, 2);
+  CONFIRMLOG = [];
+  ANSWER = false;   /* おふろ（せんとうではない） */
+  tapAllSora('main2', 'main2Cards');
+  eq('T14-14 はなまるへ', state.today.phase, 'celeb1');
+  ok('T14-15 ごはんの2択は出ない（出た確認は おふろの1つだけ）',
+     CONFIRMLOG.length === 1 && CONFIRMLOG[0].indexOf('ごはん') < 0, CONFIRMLOG.join('|'));
+  eq('T14-16 どうがタイムは30ふん', rewardMinToday(), 30);
+});
+step('T14b', function(){
+  setDay(false, 'welcome');
+  click($('btnDayNormal'));
+  ok('T14-17 ふつうの日が記録される', state.today.machiko === false);
+  eq('T14-18 クエスト②は4枚', main2TaskList().length, 4);
+  eq('T14-19 3枚目は ぷちゲーム', main2TaskList()[2] && main2TaskList()[2].t, 'ぷちゲーム');
+  eq('T14-20 4枚目は ワーク', main2TaskList()[3] && main2TaskList()[3].t, 'ワークを する');
+  state.today.machiko = true;
+  openSettings();
+  ok('T14-21 設定画面に まちこ先生の日と出る', txt('dayInfo').indexOf('まちこ先生の日') >= 0, txt('dayInfo'));
+  $('ovSettings').className = 'ov';
+});
+step('T14c', function(){
+  FAKE_MIN = 9 * 60;
+  setDay(false, 'main');
+  state.today.machiko = true;
+  ok('T14-22 日を えらんだあとは 朝へ戻さない', backToMorningIfIdle() === false);
+  state.today.machiko = null;
+  ok('T14-23 えらぶ前で 何も押していない朝は 朝へ戻す（v32と同じ）', backToMorningIfIdle() === true);
+  FAKE_MIN = 17 * 60;
+});
+
+/* T15 ごほうび動画までの 実行期限は 無い */
+step('T15', function(){
+  ok('T15-1 しめきりバーの部品は無い', !$('limit1') && !$('limit2') && !$('limit3'));
+  ok('T15-2 設定に しめきりの値は無い',
+     state.settings.videoEndBy === undefined && state.settings.bedCutoff === undefined &&
+     state.settings.quest2By === undefined && state.settings.challengeMin === undefined);
+  FAKE_MIN = 22 * 60;
+  setDay(false, 'main2');
+  ANSWER = true;
+  tapAllSora('main2', 'main2Cards');
+  eq('T15-3 22:00に おえても はなまる', state.today.phase, 'celeb1');
+  click($('btnCeleb'));
+  eq('T15-4 どうがタイムへ進む', state.today.phase, 'video1');
+  eq('T15-5 見られる時間は35ふん（せんとう）＝時刻で へらない', videoConf().minutes, 35);
+  ok('T15-6 どうがの画面が出る', isOn('scrVideo'));
+  FAKE_MIN = 17 * 60;
+});
+
+/* T16 なまえの変更 */
+step('T16', function(){
+  var lists = ['morningTasks', 'morningTasksRest', 'mainTasks', 'mainTasks2', 'holidayTasks', 'afterTasks'], i, j, hit = 0;
+  for (i = 0; i < lists.length; i++) {
+    for (j = 0; j < state.settings[lists[i]].length; j++) {
+      if (state.settings[lists[i]][j].t.indexOf('しじまち') >= 0) hit++;
+    }
+  }
+  eq('T16-1 しじまちゲーム は どこにも無い', hit, 0);
+  eq('T16-2 クエスト②の3枚目は ぷちゲーム', state.settings.mainTasks2[2].t, 'ぷちゲーム');
+});
+
+/* T17 版が上がった当日（v32の「きょう」）の引き継ぎ */
+step('T17', function(){
+  setDay(false, 'main2');
+  delete state.today.vs;
+  delete state.today.machiko;
+  state.today.chStart = 12345;
+  state.today.doneMain = [true, true, true, true, true];
+  state.today.doneMain2 = [true];
+  ensureToday();
+  ok('T17-1 押し始めた クエスト②は きょうそう あり', state.today.vs.main2 === true);
+  ok('T17-2 おわった クエスト①も きょうそう あり', state.today.vs.main === true);
+  ok('T17-3 まだの おやすみクエストは あとで聞く', state.today.vs.after === undefined);
+  ok('T17-4 チャレンジを始めていた日は ふつうの日', state.today.machiko === false);
+  render();
+  ok('T17-5 確認画面を出さず 札の画面のまま', isOn('scrMain2'));
+  eq('T17-6 クエスト②は4枚のまま', main2TaskList().length, 4);
+  setDay(false, 'main');
+  var _confirm = window.confirm;
+  window.confirm = function(){ return true; };
+  click($('btnToggleRest'));
+  window.confirm = _confirm;
+  ok('T17-7 休日⇄平日の切替で やり直すクエストは 聞き直す', state.today.vs.main === undefined);
 });
 
 /* ---- 結果 ---- */
