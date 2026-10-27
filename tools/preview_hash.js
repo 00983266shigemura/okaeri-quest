@@ -6,6 +6,7 @@
    パパの れつ なし（いいえ）で開く（v33）。付けなければ はい（2れつ）。
      例 #morning-ask / #main2-solo
    #main2-machiko＝まちこ先生の日の クエスト②。
+   #after-later＝ワークを「あとで」にした日の おやすみクエスト（札が1枚ふえる）。
    index.html 本体はさわらない。音は mkpage.py の無音化で出ない。 */
 (function(){
   var raw = (location.hash || '').replace('#', '');
@@ -23,6 +24,8 @@
   else if (opt === 'solo') state.today.vs = { morning: false, main: false, main2: false, after: false };
   else state.today.vs = { morning: true, main: true, main2: true, after: true };
   if (opt === 'machiko') state.today.machiko = true;
+  /* #after-later＝ワークを「あとで」にした日の おやすみクエスト（v37） */
+  if (opt === 'later') state.today.workLater = true;
   if (h === 'morning' || h === 'restmorning') state.today.phase = 'morning';
   else if (h === 'welcome') state.today.phase = 'welcome';
   else if (h === 'main' || h === 'rest') state.today.phase = 'main';

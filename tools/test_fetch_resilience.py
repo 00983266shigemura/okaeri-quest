@@ -266,6 +266,41 @@ ok('T11-4 前回の一覧があるチャンネルの失敗は すぐには知ら
    fetch_state.due_alerts({'UUx': {'fail_since': fetch_state.today(), 'alerted': None, 'why': 'x'}}, fetch_state.today()) == [])
 w.done()
 
+# ---------- T13 名指しで足した1本（pin）は 新着が来ても沈まない（v37・査読の指摘1） ----------
+GEORGE, PINNED = 'UUFpGG2WBt673bR-ISOHs4kQ', 'zWXHkTywWks'
+
+
+def flood(w, drop_pin):
+    """新着を 一覧の上限より多く（MAX_ITEMS+10本）・ためる上限を超えるほど 何日ぶんか流しこむ。"""
+    if drop_pin:
+        p = w.pool()
+        for e in p[GEORGE]:
+            e.pop('pin', None)
+        io.open(uvl.POOL, 'w', encoding='utf-8').write(json.dumps(p, ensure_ascii=False, indent=1, sort_keys=True) + '\n')
+    rounds = (uvl.POOL_MAX // (uvl.MAX_ITEMS + 10)) + 1
+    for r in range(rounds):
+        NEWVIDS[GEORGE] = [('G%02d_%03d' % (r, i), 'あたらしい はなし') for i in range(uvl.MAX_ITEMS + 10)]
+        run_main()
+
+
+reset()
+w = Work()
+ok('T13-0 前提＝蓄えの指定の1本に pin が付いている',
+   any(e['id'] == PINNED and e.get('pin') for e in w.pool().get(GEORGE, [])))
+flood(w, False)
+ids = items_of(w.lists(), GEORGE) or []
+ok('T13-1 新着が上限より多く来ても 一覧に残る', PINNED in ids, len(ids))
+ok('T13-2 いつも いちばん上', ids[:1] == [PINNED], ids[:3])
+ok('T13-3 ためる上限で捨てられない', any(e['id'] == PINNED for e in w.pool()[GEORGE]), len(w.pool()[GEORGE]))
+ok('T13-4 ためる数は上限まで', len(w.pool()[GEORGE]) <= uvl.POOL_MAX, len(w.pool()[GEORGE]))
+w.done()
+reset()
+w = Work()
+flood(w, True)
+ok('T13-5 負の対照＝pin が無いと 一覧から外れる', PINNED not in (items_of(w.lists(), GEORGE) or []))
+ok('T13-6 負の対照＝pin が無いと 蓄えからも消える', not any(e['id'] == PINNED for e in w.pool()[GEORGE]))
+w.done()
+
 # ---------- T12 日付は日本時間 ----------
 import datetime as _dt  # noqa: E402
 jst_now = _dt.datetime.now(_dt.timezone(_dt.timedelta(hours=9))).date().isoformat()

@@ -700,7 +700,7 @@ step('T18b', function(){
 step('T19a', function(){
   var names = [], i;
   for (i = 0; i < VIDEO_SOURCES.main.length; i++) names.push(VIDEO_SOURCES.main[i].name);
-  eq('T19-1 どうがタイムのチャンネルの並び', names.join('|'), 'むしおかだいき|もりこんにゃく|シンカリオン');
+  eq('T19-1 どうがタイムのチャンネルの並び', names.join('|'), 'むしおかだいき|もりこんにゃく|シンカリオン|おさるのジョージ');
   eq('T19-2 シンカリオンは再生リストのID', VIDEO_SOURCES.main[2].id, 'PLhWipIfRhqz287Ri53YFJWWiGn5f1xfwb');
   /* 本数は毎朝の便で増減する（見られない動画を外す）ので「1本以上」で見る */
   ok('T19-3 シンカリオンの動画が一覧に入っている', bakedItemsOf(1, VIDEO_SOURCES.main[2].id).length >= 1,
@@ -711,7 +711,7 @@ step('T19a', function(){
   render();
   var withItems = 0;
   for (i = 0; i < VIDEO_SOURCES.main.length; i++) { if (bakedItemsOf(1, VIDEO_SOURCES.main[i].id).length) withItems++; }
-  eq('T19-4 えらぶ画面のボタン＝動画のあるチャンネルの数（いまは3つ）', nlen('vidPickBtns') + '/' + withItems, '3/3');
+  eq('T19-4 えらぶ画面のボタン＝動画のあるチャンネルの数（いまは4つ・v37でジョージを足した）', nlen('vidPickBtns') + '/' + withItems, '4/4');
   eq('T19-5 3つめは シンカリオン', nth('vidPickBtns', 2), 'シンカリオン');
 });
 step('T19b', function(){
@@ -766,6 +766,92 @@ step('T20', function(){
   eq('T20-3 題名の文字は 1つも出ない', (g.textContent || '').replace(/\s/g, ''), '');
   ok('T20-4 試験の前提＝題名には漢字が入っている', /[\u4e00-\u9fff]/.test(vidBaked.items.map(function(x){ return x.t; }).join('')));
   $('ovPick').className = 'ov';
+});
+
+/* T21 どうがタイムに「おさるのジョージ」（v37・2026-10-27 しげ指示＝指定の1本 zWXHkTywWks を入れる） */
+step('T21', function(){
+  var g = VIDEO_SOURCES.main[3], items, ids = [], i;
+  eq('T21-1 4つめは おさるのジョージ', g && g.name, 'おさるのジョージ');
+  eq('T21-2 公式チャンネルの投稿一覧のID', g && g.id, 'UUFpGG2WBt673bR-ISOHs4kQ');
+  items = bakedItemsOf(1, g.id);
+  for (i = 0; i < items.length; i++) ids.push(items[i].id);
+  ok('T21-3 しげ指定の1本が一覧に入っている', ids.indexOf('zWXHkTywWks') >= 0, ids.length);
+  ok('T21-4 ほかの話も入っている（1本だけの一覧ではない）', items.length >= 2, items.length);
+  setDay(false, 'video1');
+  state.today.endAt = null;
+  setChosenSrc(1, -1);
+  render();
+  eq('T21-5 えらぶ画面の4つめのボタン', nth('vidPickBtns', 3), 'おさるのジョージ');
+});
+
+/* T22 ワークの「あとで」＝おやすみクエストへ まわす（v37・2026-10-27 しげ指示） */
+function workIdx(list){
+  var i;
+  for (i = 0; i < list.length; i++) { if (list[i].t === 'ワークを する') return i; }
+  return -1;
+}
+step('T22', function(){
+  var base = state.settings.afterTasks.length, wi;
+  /* 平日・ふつうの日のクエスト② */
+  setDay(false, 'main2');
+  state.today.machiko = false;
+  render();
+  wi = workIdx(main2TaskList());
+  ok('T22-1 クエスト②に ワークの札がある', wi >= 0, wi);
+  CONFIRMLOG = [];
+  ANSWER = false;   /* 2つめのボタン＝あとで */
+  tap('main2Cards', wi, 'sora');
+  eq('T22-2 ワークを押すと2択を聞く', CONFIRMLOG[0], 'ワークは どうする？');
+  ok('T22-3 あとで でも クエスト②の札は できた', state.today.doneMain2[wi] === true);
+  eq('T22-4 あとで の しるし', state.today.workLater, true);
+  ok('T22-5 札の見た目は「ワークは あとで」', (cardAt('main2Cards', wi, 'sora').textContent || '').indexOf('ワークは あとで') >= 0,
+     cardAt('main2Cards', wi, 'sora').textContent);
+  eq('T22-6 おやすみクエストの札が1枚ふえる', tasksOf('after').length, base + 1);
+  eq('T22-7 ふえた札は さいご＝ワーク', tasksOf('after')[base].t, 'ワークを する');
+  ok('T22-8 ほかの札の並びは変わらない', tasksOf('after')[0] === state.settings.afterTasks[0]);
+  ok('T22-9 どうがタイムは へらない', rewardMinToday() === state.settings.rewardMin, rewardMinToday());
+  ok('T22-10 はなまるの画面で しらせる', JSON.stringify(celeb1Contents().lines).indexOf('ワークは おやすみクエストで') >= 0);
+  /* とりけし→あとで の しるしも消える */
+  ANSWER = true;
+  tap('main2Cards', wi, 'sora');
+  ok('T22-11 とりけすと できたが もどる', !state.today.doneMain2[wi]);
+  eq('T22-12 とりけすと あとで の しるしも消える', state.today.workLater, false);
+  eq('T22-13 おやすみクエストの札も もとの数', tasksOf('after').length, base);
+  /* できた を選んだ日 */
+  ANSWER = true;
+  tap('main2Cards', wi, 'sora');
+  ok('T22-14 できた を選ぶと できた', state.today.doneMain2[wi] === true);
+  eq('T22-15 できた の日は ふえない', tasksOf('after').length, base);
+  /* おやすみクエスト＝ふえた札まで ぜんぶ やらないと すすまない */
+  setDay(false, 'after');
+  state.today.workLater = true;
+  save(); render();
+  eq('T22-16 おやすみクエストの画面に ふえた札が出る', rowsOf('afterCards').length, base + 1);
+  ANSWER = true;
+  for (var i = 0; i < base; i++) tapFull('after', 'afterCards', i);
+  eq('T22-17 ワークが のこっていると すすまない', state.today.phase, 'after');
+  CONFIRMLOG = [];
+  tap('afterCards', base, 'sora');
+  eq('T22-18 おやすみクエストの ワークは2択を聞かない', CONFIRMLOG.length, 0);
+  eq('T22-19 ワークまで おわると つぎへ', state.today.phase, 'celeb2');
+  /* パパと きょうそう のとき＝パパにも おなじ札がある（札の数は 両方 おなじ） */
+  ok('T22-20 パパの列にも ふえた札', cardAt('afterCards', base, 'papa') !== cardAt('afterCards', base, 'sora'));
+  /* 休日のクエストでも 同じ2択 */
+  setDay(true, 'main');
+  wi = workIdx(mainTaskList());
+  ok('T22-21 休日にも ワークの札がある', wi >= 0, wi);
+  CONFIRMLOG = [];
+  ANSWER = false;
+  tap('mainCards', wi, 'sora');
+  eq('T22-22 休日も2択を聞く', CONFIRMLOG[0], 'ワークは どうする？');
+  eq('T22-23 休日も あとで の しるし', state.today.workLater, true);
+  /* まちこ先生の日は ワークの札が無い＝ふえない */
+  setDay(false, 'main2');
+  state.today.machiko = true;
+  render();
+  eq('T22-24 まちこせんせいの ひは ワークの札なし', workIdx(main2TaskList()), -1);
+  eq('T22-25 まちこせんせいの ひは ふえない', tasksOf('after').length, base);
+  ANSWER = true;
 });
 
 /* ---- 結果 ---- */
