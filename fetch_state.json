@@ -9,7 +9,7 @@
   "alerted": null,
   "fail_since": "2026-11-03",
   "name": "けいのちゃんねる",
-  "why": "RSSが取れない: HTTP Error 500: Internal Server Error"
+  "why": "RSSが取れない: HTTP Error 404: Not Found"
  },
  "UUC4107WX_cYsJ80fWjR5Hjw": {
   "alerted": null,
@@ -22,6 +22,12 @@
   "fail_since": "2026-11-03",
   "name": "おさるのジョージ",
   "why": "RSSが取れない: HTTP Error 404: Not Found"
+ },
+ "UUO_zIRIcbIeV9jC2CJ2OAMQ": {
+  "alerted": null,
+  "fail_since": "2026-11-04",
+  "name": "もりこんにゃく",
+  "why": "RSSが取れない: HTTP Error 500: Internal Server Error"
  },
  "UUg2ISGsrOjBaf4SbxgrGgtw": {
   "alerted": null,
