@@ -1,38 +1,32 @@
 {
  "PLhWipIfRhqz287Ri53YFJWWiGn5f1xfwb": {
-  "alerted": null,
+  "alerted": "2026-11-05",
   "fail_since": "2026-11-03",
   "name": "シンカリオン",
   "why": "RSSが取れない: HTTP Error 404: Not Found"
  },
  "UU6cXcs9jEmAx9qPx6ubWWkg": {
-  "alerted": null,
+  "alerted": "2026-11-05",
   "fail_since": "2026-11-03",
   "name": "けいのちゃんねる",
   "why": "RSSが取れない: HTTP Error 404: Not Found"
  },
  "UUC4107WX_cYsJ80fWjR5Hjw": {
-  "alerted": null,
+  "alerted": "2026-11-05",
   "fail_since": "2026-11-03",
   "name": "むしおかだいき",
-  "why": "RSSが取れない: HTTP Error 404: Not Found"
- },
- "UUFpGG2WBt673bR-ISOHs4kQ": {
-  "alerted": null,
-  "fail_since": "2026-11-03",
-  "name": "おさるのジョージ",
   "why": "RSSが取れない: HTTP Error 404: Not Found"
  },
  "UUO_zIRIcbIeV9jC2CJ2OAMQ": {
   "alerted": null,
   "fail_since": "2026-11-04",
   "name": "もりこんにゃく",
-  "why": "RSSが取れない: HTTP Error 500: Internal Server Error"
+  "why": "RSSが取れない: HTTP Error 404: Not Found"
  },
  "UUg2ISGsrOjBaf4SbxgrGgtw": {
-  "alerted": null,
+  "alerted": "2026-11-05",
   "fail_since": "2026-11-03",
   "name": "たっつんTV",
-  "why": "RSSが取れない: HTTP Error 500: Internal Server Error"
+  "why": "RSSが取れない: HTTP Error 404: Not Found"
  }
 }
