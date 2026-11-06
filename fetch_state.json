@@ -15,13 +15,13 @@
   "alerted": "2026-11-05",
   "fail_since": "2026-11-03",
   "name": "むしおかだいき",
-  "why": "RSSが取れない: HTTP Error 500: Internal Server Error"
+  "why": "RSSが取れない: HTTP Error 404: Not Found"
  },
  "UUFpGG2WBt673bR-ISOHs4kQ": {
   "alerted": null,
   "fail_since": "2026-11-06",
   "name": "おさるのジョージ",
-  "why": "RSSが取れない: HTTP Error 404: Not Found"
+  "why": "RSSが取れない: HTTP Error 500: Internal Server Error"
  },
  "UUO_zIRIcbIeV9jC2CJ2OAMQ": {
   "alerted": "2026-11-06",
