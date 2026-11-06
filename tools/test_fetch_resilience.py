@@ -61,6 +61,7 @@ def fake_fetch_once(url):
 
 
 def fake_embeddable(vid):
+    CALLS['embed'] = CALLS.get('embed', 0) + 1
     return EMBED.get(vid, True)
 
 
@@ -105,10 +106,59 @@ def reset():
     NEWVIDS.clear()
     EMBED.clear()
     CALLS['fetch'] = 0
+    CALLS['embed'] = 0
+    uvl.API_KEY = ''
+    API['mode'].clear()
+    API['items'].clear()
+    API['vstat'].clear()
+    API['urls'][:] = []
+    API['status_mode'] = 'ok'
+
+
+REAL_API_GET = uvl.api_get
+API = {'mode': {}, 'status_mode': 'ok', 'urls': [], 'items': {}, 'vstat': {}}
+FAKE_KEY = 'AIzaFAKEKEY_okq_test_0123456789abcdef'
+
+
+def fake_api_get(url):
+    """公式APIの差し替え。playlistItems＝API['mode'][sid]、videos＝API['status_mode'] と API['vstat'] で答える。"""
+    API['urls'].append(url)
+    if 'playlistItems' in url:
+        sid = re.search(r'playlistId=([\w-]+)', url).group(1)
+        mode = API['mode'].get(sid, 'ok')
+        if mode in ('key', 'quota', 'other'):
+            raise uvl.ApiError(mode, 'API HTTP %s' % {'key': '400 API_KEY_INVALID', 'quota': '403 quotaExceeded',
+                                                     'other': '500'}[mode])
+        if mode == 'empty':
+            return {'items': []}
+        vids = API['items'].get(sid, [('API_' + sid[-4:], 'APIの どうが')])
+        out = [{'snippet': {'title': t, 'resourceId': {'videoId': v}},
+                'contentDetails': {'videoId': v, 'videoPublishedAt': '2026-11-0%dT00:00:00Z' % (i + 1)}}
+               for i, (v, t) in enumerate(vids)]
+        # 非公開・削除の項目（公開日の欄が無い）も混ぜる＝取り込まれないこと
+        out.append({'snippet': {'title': 'Private video', 'resourceId': {'videoId': 'PRIV_' + sid[-4:]}},
+                    'contentDetails': {'videoId': 'PRIV_' + sid[-4:]}})
+        return {'items': out}
+    if 'videos?' in url:
+        if API['status_mode'] != 'ok':
+            raise uvl.ApiError(API['status_mode'], 'API HTTP 500')
+        ids = re.search(r'&id=([\w,-]+)', url).group(1).split(',')
+        items = []
+        for v in ids:
+            st = API['vstat'].get(v, {})
+            if st == 'missing':
+                continue
+            items.append({'id': v, 'status': {'embeddable': st.get('embeddable', True),
+                                              'privacyStatus': st.get('privacy', 'public')},
+                          'snippet': {'title': st.get('title', 'だいめい ' + v)}})
+        return {'items': items}
+    raise AssertionError('想定外のURL: ' + url)
 
 
 uvl.fetch_once = fake_fetch_once
 uvl.embeddable = fake_embeddable
+uvl.api_get = fake_api_get
+uvl.API_KEY = ''      # 既定は鍵なし（今までの試験はRSSだけの動き）
 uvl.time.sleep = lambda s: None
 
 real_sources = None
@@ -300,6 +350,241 @@ flood(w, True)
 ok('T13-5 負の対照＝pin が無いと 一覧から外れる', PINNED not in (items_of(w.lists(), GEORGE) or []))
 ok('T13-6 負の対照＝pin が無いと 蓄えからも消える', not any(e['id'] == PINNED for e in w.pool()[GEORGE]))
 w.done()
+
+# ---------- T14 公式API（2026-11-06）＝①API ②RSS ③前回の一覧 ----------
+S1 = ALL[1][1]
+
+
+def api_on():
+    uvl.API_KEY = FAKE_KEY
+
+
+# T14-1 ふだんの日＝APIで取れる・RSSは呼ばない・非公開は取り込まない
+reset()
+w = Work()
+api_on()
+for _, sid, _n in ALL:
+    SOURCES[sid] = 'fail'          # RSSは落ちている（いまの実情）
+rc = run_main()
+ok('T14-1 APIで取れたら終了コード0', rc == 0, rc)
+ok('T14-2 全チャンネルにAPIの新着が入る',
+   all(('API_' + sid[-4:]) in (items_of(w.lists(), sid) or []) for _, sid, _n in ALL))
+ok('T14-3 APIで取れた日はRSSを呼ばない', CALLS['fetch'] == 0, CALLS['fetch'])
+ok('T14-4 非公開・削除（公開日の欄が無い）は取り込まない',
+   not any(e['id'].startswith('PRIV_') for v in w.pool().values() for e in v))
+ok('T14-5 帳面は作らない（失敗なし）', not os.path.exists(fetch_state.STATE), w.state() if os.path.exists(fetch_state.STATE) else '')
+ok('T14-6 見られるかの照会は1チャンネル1回（50本まとめ）',
+   len([u for u in API['urls'] if 'videos?' in u]) == sum(-(-len(w.pool()[sid]) // 50) for _, sid, _n in ALL),
+   len([u for u in API['urls'] if 'videos?' in u]))
+w.done()
+
+# T14-7 APIが失敗したチャンネルだけRSSで取る・帳面にAPIの失敗が残る（知らせは3日後）
+reset()
+w = Work()
+api_on()
+API['mode'][S0] = 'other'
+NEWVIDS[S0] = [('RSS_' + S0[-4:], 'RSSの どうが')]
+rc = run_main()
+st = w.state()
+ok('T14-7 APIが失敗してもRSSで取れる', ('RSS_' + S0[-4:]) in (items_of(w.lists(), S0) or []))
+ok('T14-8 チャンネルとしては失敗にしない', S0 not in st, st)
+ok('T14-9 APIの失敗は帳面に残る', fetch_state.API_STATE_KEY in st and not st[fetch_state.API_STATE_KEY].get('urgent'), st)
+ok('T14-10 一時的な失敗はその日には知らせない', fetch_state.due_alerts(dict(st), fetch_state.today()) == [])
+w.done()
+
+# T14-11 鍵の誤り×RSS成功＝覆い隠しが起きる組でも、その日のうちに知らせる
+reset()
+w = Work()
+api_on()
+for _, sid, _n in ALL:
+    API['mode'][sid] = 'key'
+rc = run_main()
+st = w.state()
+ok('T14-11 鍵の誤りでもRSSで取れれば便は続く', rc == 0 and all(sid not in st for _, sid, _n in ALL), st)
+ok('T14-12 鍵の誤りは すぐ知らせる印', st.get(fetch_state.API_STATE_KEY, {}).get('urgent') is True, st)
+al = fetch_state.due_alerts(dict(st), fetch_state.today())
+ok('T14-13 その日のうちに知らせる', [k for k, _ in al] == [fetch_state.API_STATE_KEY], al)
+ok('T14-14 理由に「鍵の誤り」と書く', '鍵の誤り' in st.get(fetch_state.API_STATE_KEY, {}).get('why', ''), st)
+w.done()
+
+# T14-15 割当の超過＝別の文言・すぐには知らせない
+reset()
+w = Work()
+api_on()
+API['mode'][S0] = 'quota'
+rc = run_main()
+st = w.state()
+ok('T14-15 割当の超過は別の文言', '割当の超過' in st.get(fetch_state.API_STATE_KEY, {}).get('why', ''), st)
+ok('T14-16 割当の超過はその日には知らせない', not st.get(fetch_state.API_STATE_KEY, {}).get('urgent'), st)
+w.done()
+
+# T14-17 帳面の掃除でAPIの記録が消えない（外したチャンネルの記録だけ消す）
+reset()
+w = Work()
+api_on()
+API['mode'][S0] = 'key'
+io.open(fetch_state.STATE, 'w', encoding='utf-8').write(json.dumps({
+    'UUgone': {'fail_since': '2026-10-01', 'alerted': None, 'why': 'x', 'name': 'もう外した'}}))
+rc = run_main()
+st = w.state()
+ok('T14-17 掃除でAPIの記録は消えない', fetch_state.API_STATE_KEY in st and 'UUgone' not in st, st)
+# 1チャンネルだけの400/403（非公開化など）＝鍵の誤りとはみない・その日には知らせない（実装査読の指摘1）
+ok('T14-38 1チャンネルだけの403は急ぎの印を付けない', not st.get(fetch_state.API_STATE_KEY, {}).get('urgent'), st)
+ok('T14-39 1チャンネルだけの403は「一部の再生リスト」と書く', '一部の再生リスト' in st.get(fetch_state.API_STATE_KEY, {}).get('why', ''), st)
+w.done()
+
+# T14-40 急ぎの印は翌日の判定で外れる（実装査読の指摘2）
+s2 = {}
+fetch_state.mark_fail(s2, 'k', 'x', day='2026-11-07', urgent=True)
+fetch_state.mark_fail(s2, 'k', 'y', day='2026-11-08', urgent=False)
+ok('T14-40 直ったあとの非急ぎの失敗で印が外れる', 'urgent' not in s2['k'] and s2['k']['fail_since'] == '2026-11-07', s2)
+
+# T14-18 APIが0本の答え＝失敗とみなしRSSへ
+reset()
+w = Work()
+api_on()
+API['mode'][S0] = 'empty'
+NEWVIDS[S0] = [('RSS_' + S0[-4:], 'RSSの どうが')]
+rc = run_main()
+ok('T14-18 APIが0本ならRSSへ回る', ('RSS_' + S0[-4:]) in (items_of(w.lists(), S0) or []) and CALLS['fetch'] == 1, CALLS['fetch'])
+w.done()
+
+# T14-19 APIもRSSも失敗＝前回の一覧のまま
+reset()
+w = Work()
+api_on()
+before_lists = w.lists()
+API['mode'][S0] = 'other'
+SOURCES[S0] = 'fail'
+rc = run_main()
+ok('T14-19 両方失敗なら前回の一覧のまま', rc == 0 and items_of(w.lists(), S0) == items_of(before_lists, S0))
+ok('T14-20 チャンネルの失敗として帳面に残る', 'APIもRSSも' in w.state().get(S0, {}).get('why', ''), w.state())
+w.done()
+
+# T14-21 見られるか＝埋め込み禁止・非公開・答えに無い（削除）の3つとも「見られない」・題名は取り直す
+reset()
+w = Work()
+api_on()
+pool0 = [e['id'] for e in w.pool()[S1] if e.get('ok', True)]
+API['vstat'][pool0[0]] = {'embeddable': False}
+API['vstat'][pool0[1]] = {'privacy': 'private'}
+API['vstat'][pool0[2]] = 'missing'
+API['vstat'][pool0[3]] = {'title': 'あたらしい だいめい'}
+rc = run_main()
+ids = items_of(w.lists(), S1) or []
+ok('T14-21 埋め込み禁止は外す', pool0[0] not in ids)
+ok('T14-22 非公開は外す', pool0[1] not in ids)
+ok('T14-23 答えに無い（削除）は外す', pool0[2] not in ids)
+ok('T14-24 ほかは残る', pool0[3] in ids and pool0[4] in ids)
+ok('T14-25 外した動画も記録は残す（印だけ）', all(any(e['id'] == v and e.get('ok') is False for e in w.pool()[S1]) for v in pool0[:3]))
+ok('T14-26 題名を取り直す', any(e['id'] == pool0[3] and e['t'] == 'あたらしい だいめい' for e in w.pool()[S1]))
+ok('T14-27 照会を使った日はoEmbedを呼ばない', CALLS['embed'] == 0, CALLS['embed'])
+w.done()
+
+# T14-28 見られるかの照会が失敗＝oEmbedへ戻る・帳面に残る
+reset()
+w = Work()
+api_on()
+API['status_mode'] = 'other'
+pool0 = [e['id'] for e in w.pool()[S1] if e.get('ok', True)]
+EMBED[pool0[0]] = False
+rc = run_main()
+ok('T14-28 照会が失敗したらoEmbedで調べる', pool0[0] not in (items_of(w.lists(), S1) or []))
+ok('T14-29 照会の失敗も帳面に残る', fetch_state.API_STATE_KEY in w.state(), w.state())
+w.done()
+
+# T14-30 鍵が無い日は今までどおり（APIを呼ばない・APIの記録を持たない）
+reset()
+w = Work()
+io.open(fetch_state.STATE, 'w', encoding='utf-8').write(json.dumps({
+    fetch_state.API_STATE_KEY: {'fail_since': '2026-11-01', 'alerted': None, 'why': 'x', 'name': 'YouTube公式API'}}))
+rc = run_main()
+ok('T14-30 鍵が無ければAPIを呼ばない', API['urls'] == [], API['urls'][:2])
+ok('T14-31 鍵が無ければAPIの記録は消える', not os.path.exists(fetch_state.STATE) or fetch_state.API_STATE_KEY not in w.state())
+w.done()
+
+# T14-32 鍵が漏れない＝本物の api_get を、通信だけ差し替えて動かす
+class _Resp(object):
+    status = 200
+
+    def __init__(self, body):
+        self.body = body
+
+    def read(self):
+        return self.body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+SEEN = []
+
+
+def fake_urlopen(req, timeout=None):
+    SEEN.append(req)
+    if 'bad' in req.full_url:
+        import email.message
+        raise uvl.urllib.error.HTTPError(req.full_url, 400, 'Bad Request', email.message.Message(),
+                                         io.BytesIO(json.dumps({'error': {'code': 400, 'errors': [{'reason': 'badRequest'}],
+                                                                          'details': [{'reason': 'API_KEY_INVALID'}]}}).encode('utf-8')))
+    return _Resp(json.dumps({'items': []}).encode('utf-8'))
+
+
+real_urlopen = uvl.urllib.request.urlopen
+uvl.urllib.request.urlopen = fake_urlopen
+uvl.API_KEY = FAKE_KEY
+out = io.StringIO()
+_stdout = sys.stdout
+sys.stdout = out
+try:
+    REAL_API_GET(uvl.API_ITEMS % 'UUok')
+    err = None
+    try:
+        REAL_API_GET(uvl.API_ITEMS % 'UUbad')
+    except uvl.ApiError as e:
+        err = e
+finally:
+    sys.stdout = _stdout
+    uvl.urllib.request.urlopen = real_urlopen
+    uvl.API_KEY = ''
+ok('T14-32 鍵はヘッダで送る', all(r.get_header('X-goog-api-key') == FAKE_KEY for r in SEEN) and len(SEEN) == 2, len(SEEN))
+ok('T14-33 URLに鍵が載らない', all(FAKE_KEY not in r.full_url for r in SEEN))
+ok('T14-34 400の鍵の誤りを key と見分ける', err is not None and err.kind == 'key' and 'API_KEY_INVALID' in err.why, err and err.why)
+ok('T14-35 エラー文と出力に鍵が出ない', err is not None and FAKE_KEY not in err.why and FAKE_KEY not in out.getvalue())
+
+# T14-36 便全体の出力に鍵が出ない（鍵の誤りの日を通しで）
+reset()
+w = Work()
+api_on()
+for _, sid, _n in ALL:
+    API['mode'][sid] = 'key'
+out = io.StringIO()
+sys.stdout = out
+try:
+    run_main()
+finally:
+    sys.stdout = _stdout
+st_txt = io.open(fetch_state.STATE, encoding='utf-8').read() if os.path.exists(fetch_state.STATE) else ''
+ok('T14-36 便の出力と帳面に鍵の文字列が0回', FAKE_KEY not in out.getvalue() and FAKE_KEY not in st_txt)
+ok('T14-36b 前提＝鍵の誤りの日は帳面がある（空の帳面で上を素通りさせない）', fetch_state.API_STATE_KEY in st_txt)
+w.done()
+
+# T14-37 知らせの文（公式APIの行は「使えていません」）
+d = tempfile.mkdtemp(prefix='okq_api_')
+io.open(os.path.join(d, 'fetch_state.json'), 'w', encoding='utf-8').write(json.dumps({
+    fetch_state.API_STATE_KEY: {'fail_since': '2026-11-07', 'alerted': None, 'why': '鍵の誤りかAPIが有効でない（…）',
+                                'name': 'YouTube公式API', 'urgent': True}}))
+alerts = os.path.join(d, 'alerts.txt')
+r = subprocess.run([sys.executable, os.path.join(HERE, 'fetch_health.py'), 'record', '--holidays', 'success',
+                    '--alerts', alerts, '--state', os.path.join(d, 'fetch_state.json'), '--day', '2026-11-07'],
+                   stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+txt = io.open(alerts, encoding='utf-8').read()
+ok('T14-37 公式APIの知らせは その日に・「使えていません」と書く', r.returncode == 0 and '使えていません' in txt and 'YOUTUBE_API_KEY' in txt, txt)
+shutil.rmtree(d)
+
 
 # ---------- T12 日付は日本時間 ----------
 import datetime as _dt  # noqa: E402

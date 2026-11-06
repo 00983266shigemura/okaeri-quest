@@ -27,6 +27,7 @@ STATE = os.path.join(ROOT, 'fetch_state.json')
 ALERT_AFTER_DAYS = 2    # 失敗した最初の日から2日後（＝3日つづけて失敗）に知らせる
 REMIND_EVERY_DAYS = 7   # 直らないあいだは7日おきに もういちど知らせる
 HOLIDAYS_KEY = 'holidays'
+API_STATE_KEY = 'youtube_api'   # 公式APIの具合（チャンネルとは別に覚える・2026-11-06）
 
 
 JST = datetime.timezone(datetime.timedelta(hours=9))
@@ -76,8 +77,11 @@ def mark_fail(state, key, why, name=None, day=None, urgent=False):
         cur['why'] = why
         if name:
             cur['name'] = name
+        # 急ぎの印はその日の判定で付け直す（一度付いた印が、直ったあとも残らないように）
         if urgent:
             cur['urgent'] = True
+        else:
+            cur.pop('urgent', None)
         return
     state[key] = {'fail_since': day, 'alerted': None, 'why': why, 'name': name or key}
     if urgent:

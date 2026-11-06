@@ -45,6 +45,12 @@ def cmd_record(a):
     fetch_state.save(state, a.state)
     lines = []
     for key, e in alerts:
+        if key == fetch_state.API_STATE_KEY:
+            # 公式APIはRSSで補えている日もある＝「取れていない」と書くと誤解になる
+            lines.append('YouTube公式API が %s から使えていません（%s）。RSSか前回の一覧で続けています。'
+                         'GitHubの秘密の欄の YOUTUBE_API_KEY と、Google Cloud の設定を確かめてください。'
+                         % (e.get('fail_since'), e.get('why', '')))
+            continue
         lines.append('%s が %s から取れていません（%s）。前回の一覧のまま使っています。'
                      % (e.get('name', key), e.get('fail_since'), e.get('why', '')))
     io.open(a.alerts, 'w', encoding='utf-8').write(''.join(l + '\n' for l in lines))

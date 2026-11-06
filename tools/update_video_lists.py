@@ -19,6 +19,15 @@
   一覧から外す**。翌朝また見て、戻っていれば一覧へ戻す。
   （消してしまうと、一時的な失敗で古い動画が永久に失われるため）
 
+取り方は3段（2026-11-06）:
+  ①YouTube公式API（鍵＝環境変数 YOUTUBE_API_KEY）②だめならRSS ③だめなら前回の一覧。
+  RSSは2025年12月から断続的に落ち、2026-11-03からはGitHubの機械からも全チャンネル404/500になった。
+  RSSは保証の無い窓口なので主役から外し、鍵の無い間と、APIが失敗した日の予備にだけ使う。
+  鍵はURLに載せず専用のヘッダで送る（ログやエラー文にURLごと出ても鍵は出ない）。
+  鍵があるのにAPIが成功しなかった日は、RSSで取れても帳面に残す（主の窓口が無音で死なないように）。
+  見られるかの判定も、鍵があればAPIの50本まとめ照会で行い、題名も毎日取り直す
+  （保存した情報は30日以内に更新する決まり＝YouTube API Services Developer Policies III.E.4）。
+
 安全側の作り:
   - 1つのチャンネルが取れなくても、ほかのチャンネルは更新する（2026-10-14 v34）。
     取れなかったチャンネルは、ためた記録も一覧も前回のまま（3回まで取り直してから あきらめる）。
@@ -52,6 +61,10 @@ POOL = os.path.join(ROOT, 'videos_pool.json')
 CHANNEL_FEED = 'https://www.youtube.com/feeds/videos.xml?channel_id=%s'
 PLAYLIST_FEED = 'https://www.youtube.com/feeds/videos.xml?playlist_id=%s'
 OEMBED = 'https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=%s&format=json'
+API_ITEMS = 'https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&maxResults=50&playlistId=%s'
+# videos は id を名指しする呼び方＝maxResults は併用しない（公式リファレンス）。50本ずつは呼ぶ側で区切る
+API_VIDEOS = 'https://www.googleapis.com/youtube/v3/videos?part=status,snippet&id=%s'
+API_KEY = os.environ.get('YOUTUBE_API_KEY', '').strip()
 UA = 'okaeri-quest-updater'
 LINE_RE = re.compile(r'^var VIDEO_LISTS = (.*);$', re.M)
 MAX_ITEMS = 60       # 1つのチャンネルから一覧に載せる上限
@@ -123,6 +136,96 @@ def embeddable(vid):
         return True
     except Exception:
         return True
+
+
+class ApiError(Exception):
+    """kind＝'key'（鍵の誤り・APIが有効でない）/'quota'（1日の割当の超過）/'other'（それ以外）。
+    文言に URL も鍵も入れない（状態コードと理由の名前だけ）。"""
+    def __init__(self, kind, why):
+        Exception.__init__(self, why)
+        self.kind = kind
+        self.why = why
+
+
+QUOTA_REASONS = ('quotaExceeded', 'dailyLimitExceeded', 'rateLimitExceeded', 'userRateLimitExceeded')
+
+
+def api_get(url):
+    """公式APIを1回呼ぶ。鍵は X-goog-api-key のヘッダで送る（URLには載せない）。"""
+    req = urllib.request.Request(url, headers={'User-Agent': UA, 'X-goog-api-key': API_KEY})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.loads(r.read().decode('utf-8', 'replace'))
+    except urllib.error.HTTPError as e:
+        reasons = []
+        try:
+            err = json.loads(e.read().decode('utf-8', 'replace')).get('error', {})
+            reasons = [x.get('reason', '') for x in err.get('errors', [])]
+            reasons += [x.get('reason', '') for x in err.get('details', []) if isinstance(x, dict)]
+        except Exception:
+            pass
+        reasons = [x for x in reasons if x]
+        why = 'API HTTP %d%s' % (e.code, (' ' + '/'.join(reasons)) if reasons else '')
+        if any(x in QUOTA_REASONS for x in reasons):
+            raise ApiError('quota', why)
+        if e.code in (400, 401, 403):
+            raise ApiError('key', why)
+        raise ApiError('other', why)
+    except ApiError:
+        raise
+    except Exception as e:
+        raise ApiError('other', 'API %s' % type(e).__name__)
+
+
+def api_call(url):
+    """'other' の失敗だけ少し待って取り直す（鍵の誤り・割当の超過は取り直しても同じ）。"""
+    last = None
+    for i in range(len(RETRY_WAITS) + 1):
+        try:
+            return api_get(url)
+        except ApiError as e:
+            last = e
+            if e.kind != 'other':
+                raise
+        if i < len(RETRY_WAITS):
+            time.sleep(RETRY_WAITS[i])
+    raise last
+
+
+def fetch_api(sid):
+    """再生リスト（UU…＝チャンネルの投稿一覧・PL…）の新しい50本を公式APIで取る。
+    非公開・削除の項目は公開日の欄が無いので取り込まない。0本の答えは失敗とみなす（RSSへ回す）。"""
+    data = api_call(API_ITEMS % sid)
+    items = []
+    for it in data.get('items', []):
+        sn = it.get('snippet') or {}
+        cd = it.get('contentDetails') or {}
+        vid = cd.get('videoId') or (sn.get('resourceId') or {}).get('videoId')
+        pub = cd.get('videoPublishedAt')
+        if not vid or not pub:
+            continue
+        items.append({'id': vid, 't': clean_title(sn.get('title', '')), 'pub': pub})
+    if not items:
+        raise ApiError('other', 'API 動画が0本の答え')
+    return items
+
+
+def api_status(ids):
+    """見られるかと題名を、50本ずつまとめて公式APIに聞く。{id: (見られるか, 題名)} を返す。
+    見られない＝埋め込み禁止・非公開・答えに無い（削除）。今のoEmbedが外している範囲と同じ。"""
+    out = {}
+    for i in range(0, len(ids), 50):
+        part = ids[i:i + 50]
+        data = api_call(API_VIDEOS % ','.join(part))
+        got = {}
+        for it in data.get('items', []):
+            st = it.get('status') or {}
+            ok = st.get('embeddable') is True and st.get('privacyStatus') in ('public', 'unlisted')
+            t = (it.get('snippet') or {}).get('title')
+            got[it.get('id')] = (ok, clean_title(t) if t else None)
+        for vid in part:
+            out[vid] = got.get(vid, (False, None))
+    return out
 
 
 def clean_title(t):
@@ -227,6 +330,8 @@ def main():
     updated = {}
     live_ids = set()
     failed = []
+    api_problems = []   # (kind, 理由)＝鍵があるのに公式APIが成功しなかった物
+    api_tried, api_key_fails = 0, 0   # 新着をAPIで試したチャンネル数と、そのうち400/401/403の数
     for key in sorted(frames.keys()):
         out_sources = []
         for chan in frames[key]:
@@ -236,19 +341,33 @@ def main():
 
             live_ids.add(sid)
 
-            xml, why = fetch_feed(feed_url(sid))
+            fresh = None
+            if API_KEY:
+                api_tried += 1
+                try:
+                    fresh = fetch_api(sid)
+                except ApiError as e:
+                    if e.kind == 'key':
+                        api_key_fails += 1
+                    api_problems.append((e.kind, '%s: %s' % (sname, e.why)))
+                    say('::warning::%s / %s を公式APIで取れませんでした（%s）。RSSを試します' % (key, sname, e.why))
+            why = ''
+            if fresh is None:
+                xml, why = fetch_feed(feed_url(sid))
+                if xml is not None:
+                    fresh = parse_feed(xml)
             entries = [e for e in pool.get(sid, []) if e.get('id')]
-            if xml is None:
+            if fresh is None:
                 # 取れなかった＝ためた記録も「見られるか」の印も前回のまま使う（見直しもしない）
                 usable = [e for e in entries if e.get('ok', True)][:MAX_ITEMS]
                 # 前回の一覧が無い（新しく足したチャンネルのID違いなど）＝代わりに出せる物が無いので、その日のうちに知らせる
-                fetch_state.mark_fail(state, sid, 'RSSが取れない: ' + why, name=sname, urgent=not usable)
+                fetch_state.mark_fail(state, sid, ('APIもRSSも取れない: ' if API_KEY else 'RSSが取れない: ') + why,
+                                      name=sname, urgent=not usable)
                 failed.append(sname)
                 say('::warning::%s / %s のRSSが取れませんでした（%s）。前回の一覧のまま続けます' % (key, sname, why))
                 out_sources.append({'id': sid, 'name': sname,
                                     'items': [{'id': e['id'], 't': e['t']} for e in usable]})
                 continue
-            fresh = parse_feed(xml)
             before = [dict(e) for e in entries]
 
             known = set(e['id'] for e in entries)
@@ -263,9 +382,22 @@ def main():
                 say('%s / %s: 新着 %d本' % (key, sname, added))
 
             # 見られるかを毎朝みる。記録は消さず印だけ付ける（一時的な失敗で失わないため）
+            # 鍵があれば公式APIで50本ずつまとめて聞き、題名も取り直す。失敗した日は1本ずつのoEmbedへ戻る。
+            status = None
+            if API_KEY:
+                try:
+                    status = api_status([e['id'] for e in entries])
+                except ApiError as ex:
+                    api_problems.append((ex.kind, '%s の見られるかの照会: %s' % (sname, ex.why)))
+                    say('::warning::%s / %s の見られるかを公式APIで聞けませんでした（%s）。oEmbedで調べます' % (key, sname, ex.why))
             back, gone = 0, 0
             for e in entries:
-                now_ok = embeddable(e['id'])
+                if status is not None:
+                    now_ok, title = status.get(e['id'], (False, None))
+                    if title:
+                        e['t'] = title
+                else:
+                    now_ok = embeddable(e['id'])
                 if now_ok and not e.get('ok', True):
                     back += 1
                 if not now_ok and e.get('ok', True):
@@ -305,9 +437,29 @@ def main():
 
         updated[key] = {'sources': out_sources}
 
+    # 公式APIの具合を帳面へ。RSSで取れた日も残す＝主の窓口が無音で死んだままにならないように。
+    # その日のうちに知らせるのは鍵の誤りだけ。鍵の誤りは全チャンネルに同時に出るので、
+    # 「試した全チャンネルが400/401/403」のときだけ鍵の誤りとみる（1つの再生リストだけの403＝
+    # 非公開化などで、その日のうちに誤った知らせを出さないため・2026-11-06 実装査読の指摘1）。
+    # 割当の超過・その他は3日つづいたら知らせる。
+    if API_KEY and api_problems:
+        kinds = set(k for k, _ in api_problems)
+        all_key = api_tried > 0 and api_key_fails == api_tried
+        head = ('鍵の誤りかAPIが有効でない' if all_key
+                else '1日の割当の超過' if 'quota' in kinds
+                else '一部の再生リストを公式APIで見られない' if 'key' in kinds
+                else '公式APIの一時的な失敗')
+        fetch_state.mark_fail(state, fetch_state.API_STATE_KEY, '%s（%s ほか%d件）' % (head, api_problems[0][1], len(api_problems) - 1),
+                              name='YouTube公式API', urgent=all_key)
+    else:
+        # 鍵が無い日は今までどおりRSSだけ＝APIの記録は持たない
+        fetch_state.mark_ok(state, fetch_state.API_STATE_KEY)
+
     # VIDEO_SOURCES から外したチャンネルの失敗記録は捨てる（外したのに知らせが続かないように）
+    # 祝日と公式APIの記録はチャンネルではないので消さない
+    keep = (fetch_state.HOLIDAYS_KEY, fetch_state.API_STATE_KEY)
     for k in list(state.keys()):
-        if k != fetch_state.HOLIDAYS_KEY and k not in live_ids:
+        if k not in keep and k not in live_ids:
             del state[k]
 
     body = js_safe(json.dumps(updated, ensure_ascii=False, separators=(",", ":")))
