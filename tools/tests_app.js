@@ -700,7 +700,7 @@ step('T18b', function(){
 step('T19a', function(){
   var names = [], i;
   for (i = 0; i < VIDEO_SOURCES.main.length; i++) names.push(VIDEO_SOURCES.main[i].name);
-  eq('T19-1 どうがタイムのチャンネルの並び', names.join('|'), 'むしおかだいき|もりこんにゃく|シンカリオン|おさるのジョージ');
+  eq('T19-1 どうがタイムのチャンネルの並び', names.join('|'), 'むしおかだいき|もりこんにゃく|シンカリオン|おさるのジョージ|ハムスター きなこ|ハムスター ラブ');
   eq('T19-2 シンカリオンは再生リストのID', VIDEO_SOURCES.main[2].id, 'PLhWipIfRhqz287Ri53YFJWWiGn5f1xfwb');
   /* 本数は毎朝の便で増減する（見られない動画を外す）ので「1本以上」で見る */
   ok('T19-3 シンカリオンの動画が一覧に入っている', bakedItemsOf(1, VIDEO_SOURCES.main[2].id).length >= 1,
@@ -711,7 +711,7 @@ step('T19a', function(){
   render();
   var withItems = 0;
   for (i = 0; i < VIDEO_SOURCES.main.length; i++) { if (bakedItemsOf(1, VIDEO_SOURCES.main[i].id).length) withItems++; }
-  eq('T19-4 えらぶ画面のボタン＝動画のあるチャンネルの数（いまは4つ・v37でジョージを足した）', nlen('vidPickBtns') + '/' + withItems, '4/4');
+  eq('T19-4 えらぶ画面のボタン＝動画のあるチャンネルの数（いまは6つ・v38でハムスター2つを足した）', nlen('vidPickBtns') + '/' + withItems, '6/6');
   eq('T19-5 3つめは シンカリオン', nth('vidPickBtns', 2), 'シンカリオン');
 });
 step('T19b', function(){
@@ -749,7 +749,7 @@ step('T19b', function(){
   state.today.endAt = null;
   setChosenSrc(2, -1);
   render();
-  eq('T19-19 ねるまえタイムのチャンネルは2つのまま', nlen('vidPickBtns'), 2);
+  eq('T19-19 ねるまえタイムのチャンネルは4つ（v38でハムスター2つを足した）', nlen('vidPickBtns'), 4);
   reloadPage = _rp;
 });
 
@@ -782,6 +782,36 @@ step('T21', function(){
   setChosenSrc(1, -1);
   render();
   eq('T21-5 えらぶ画面の4つめのボタン', nth('vidPickBtns', 3), 'おさるのジョージ');
+});
+
+/* T23 ハムスターの2チャンネル（v38・2026-11-07 しげ指示＝おかえりクエストと おやすみクエストの両方に） */
+step('T23', function(){
+  var HAM = [['UUgsG2x5F-SfVYiqTD_f9x2Q', 'ハムスター きなこ'], ['UU90WnD9GRfSbrCvzC2aVNNw', 'ハムスター ラブ']];
+  var kinds = [[1, 'main', 'どうがタイム'], [2, 'petit', 'ねるまえタイム']], a, b, j, src, found, btns;
+  for (a = 0; a < kinds.length; a++) {
+    for (b = 0; b < HAM.length; b++) {
+      found = -1;
+      src = VIDEO_SOURCES[kinds[a][1]];
+      for (j = 0; j < src.length; j++) { if (src[j].id === HAM[b][0]) found = j; }
+      ok('T23-' + kinds[a][2] + '-' + HAM[b][1] + ' 表にある', found >= 0, found);
+      eq('T23-' + kinds[a][2] + '-' + HAM[b][1] + ' 名前', found >= 0 ? src[found].name : '(なし)', HAM[b][1]);
+      ok('T23-' + kinds[a][2] + '-' + HAM[b][1] + ' 動画が一覧に入っている', bakedItemsOf(kinds[a][0], HAM[b][0]).length >= 1,
+         bakedItemsOf(kinds[a][0], HAM[b][0]).length);
+    }
+    /* えらぶ画面にボタンが出て、4つ以上なので2列 */
+    setDay(false, kinds[a][0] === 1 ? 'video1' : 'video2');
+    state.today.endAt = null;
+    setChosenSrc(kinds[a][0], -1);
+    render();
+    btns = [];
+    for (j = 0; j < nlen('vidPickBtns'); j++) btns.push(nth('vidPickBtns', j));
+    ok('T23-' + kinds[a][2] + ' えらぶ画面に ハムスター きなこ', btns.indexOf('ハムスター きなこ') >= 0, btns.join('|'));
+    ok('T23-' + kinds[a][2] + ' えらぶ画面に ハムスター ラブ', btns.indexOf('ハムスター ラブ') >= 0, btns.join('|'));
+    eq('T23-' + kinds[a][2] + ' 札は2列', $('vidPickBtns').className, 'two');
+  }
+  /* 選ぶと そのチャンネルが選ばれる（ねるまえタイムの3つめ＝ハムスター きなこ） */
+  click($('vidPickBtns').childNodes[2]);
+  eq('T23-ねるまえタイム 3つめを押すと ハムスター きなこ', chosenSrc(2) >= 0 ? sourcesFor(2)[chosenSrc(2)].name : '(なし)', 'ハムスター きなこ');
 });
 
 /* T22 ワークの「あとで」＝おやすみクエストへ まわす（v37・2026-10-27 しげ指示） */

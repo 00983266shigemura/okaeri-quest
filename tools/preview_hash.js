@@ -7,6 +7,7 @@
      例 #morning-ask / #main2-solo
    #main2-machiko＝まちこ先生の日の クエスト②。
    #after-later＝ワークを「あとで」にした日の おやすみクエスト（札が1枚ふえる）。
+   #video1＝どうがタイムの えらぶ画面／#video2＝ねるまえタイムの えらぶ画面。
    index.html 本体はさわらない。音は mkpage.py の無音化で出ない。 */
 (function(){
   var raw = (location.hash || '').replace('#', '');
@@ -40,6 +41,12 @@
     state.today.phase = 'video1';
     state.today.srcMain = -1;
     state.today.endAt = (opt === 'playpick') ? (Date.now() + 12 * 60000) : null;
+  }
+  else if (h === 'video2') {
+    /* #video2＝ねるまえタイムの「どの チャンネルに する？」（v38） */
+    state.today.phase = 'video2';
+    state.today.srcPetit = -1;
+    state.today.endAt = null;
   }
   save();
   render();

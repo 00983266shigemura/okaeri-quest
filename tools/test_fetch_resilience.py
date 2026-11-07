@@ -196,6 +196,14 @@ rc = run_main()
 ok('T1-1 終了コード0', rc == 0, rc)
 ok('T1-2 全チャンネルに新着が入る', all(('NEW_' + sid[-4:]) in (items_of(w.lists(), sid) or []) for _, sid, _n in ALL))
 ok('T1-3 帳面は作らない（失敗なし）', not os.path.exists(fetch_state.STATE))
+# 2つの枠に同じチャンネルがあるとき（v38・ハムスター）＝どちらの枠にも同じ一覧が載る
+SHARED = set(sid for k, sid, _n in ALL if k == 'main') & set(sid for k, sid, _n in ALL if k == 'petit')
+ok('T1-4 試験の前提＝両方の枠にあるチャンネルが2つ', len(SHARED) == 2, sorted(SHARED))
+ok('T1-5 両方の枠にあるチャンネルは、どちらの枠にも同じ一覧（新着入り）',
+   all([s['items'] for s in w.lists()['main']['sources'] if s['id'] == sid] ==
+       [s['items'] for s in w.lists()['petit']['sources'] if s['id'] == sid] and
+       ('NEW_' + sid[-4:]) in [it['id'] for s in w.lists()['petit']['sources'] if s['id'] == sid for it in s['items']]
+       for sid in SHARED))
 w.done()
 
 # ---------- T2 1つだけ404＝ほかは更新・そのチャンネルは前回のまま ----------
@@ -230,7 +238,8 @@ rc = run_main()
 ok('T3-1 全部失敗しても終了コード0', rc == 0, rc)
 ok('T3-2 index.html は1文字も変わらない', w.index() == idx_before)
 ok('T3-3 videos_pool.json も変わらない', io.open(uvl.POOL, encoding='utf-8').read() == pool_before)
-ok('T3-4 帳面に4つとも残る', len(w.state()) == len(ALL), w.state())
+# 同じチャンネルを2つの枠に置いても帳面はチャンネルごとに1件（v38・ハムスターを両方の枠へ）
+ok('T3-4 帳面に全チャンネルが1件ずつ残る', len(w.state()) == len(set(sid for _, sid, _n in ALL)), w.state())
 w.done()
 
 # ---------- T4 1回目だけ404（すぐ取り直せる）＝失敗にしない ----------
