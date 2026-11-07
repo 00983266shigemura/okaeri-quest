@@ -18,10 +18,10 @@
   "why": "RSSが取れない: HTTP Error 404: Not Found"
  },
  "UUFpGG2WBt673bR-ISOHs4kQ": {
-  "alerted": null,
+  "alerted": "2026-11-08",
   "fail_since": "2026-11-06",
   "name": "おさるのジョージ",
-  "why": "RSSが取れない: HTTP Error 500: Internal Server Error"
+  "why": "RSSが取れない: HTTP Error 404: Not Found"
  },
  "UUO_zIRIcbIeV9jC2CJ2OAMQ": {
   "alerted": "2026-11-06",
@@ -33,6 +33,12 @@
   "alerted": "2026-11-05",
   "fail_since": "2026-11-03",
   "name": "たっつんTV",
+  "why": "RSSが取れない: HTTP Error 500: Internal Server Error"
+ },
+ "UUgsG2x5F-SfVYiqTD_f9x2Q": {
+  "alerted": null,
+  "fail_since": "2026-11-08",
+  "name": "ハムスター きなこ",
   "why": "RSSが取れない: HTTP Error 404: Not Found"
  }
 }
