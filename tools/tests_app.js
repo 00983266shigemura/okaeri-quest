@@ -924,6 +924,75 @@ step('T24', function(){
   eq('T24-13 クエスト①を ぜんぶ押すと クエスト②へ', state.today.phase, 'main2');
 });
 
+/* =========================================================
+   T25 v40（2026-11-11 しげ指示）
+   「設定のおうちのひと用の計算をなくして、「おとなのひと」ボタンの長押しで入れるようにして。（他のアプリと同じ仕様）」
+   時計は にせもの に差し替えて、押した瞬間・離した・1.2秒たった を順に確かめる
+   ========================================================= */
+step('T25', function(){
+  var gb = $('btnGear'), pend = [], ev, immediate = window.setTimeout, origClear = window.clearTimeout;
+  function fire(type){
+    var e = document.createEvent('Event');
+    e.initEvent(type, true, true);
+    gb.dispatchEvent(e);
+    return e;
+  }
+  function runPending(){
+    var i;
+    for (i = 0; i < pend.length; i++) { if (!pend[i].dead && !pend[i].done) { pend[i].done = true; pend[i].f(); } }
+  }
+  function live(){
+    var i, n = 0;
+    for (i = 0; i < pend.length; i++) { if (!pend[i].dead && !pend[i].done) n++; }
+    return n;
+  }
+  eq('T25-1 ボタンの文字は おとなのひと（ながおし）', gb && gb.textContent, 'おとなのひと（ながおし）');
+  ok('T25-2 計算の関門の画面が無い', $('ovQuiz') === null && $('quizA') === null && $('quizOk') === null);
+  ok('T25-3 計算の関門の関数が無い', typeof openQuiz === 'undefined' && typeof holdStart === 'function');
+  window.setTimeout = function(f, ms){ pend.push({ f: f, ms: ms }); return pend.length; };
+  window.clearTimeout = function(id){ if (pend[id - 1]) pend[id - 1].dead = true; };
+  try {
+    hideOverlays();
+    /* 指で押す → 離す（短い押し）＝入らない */
+    ev = fire('touchstart');
+    eq('T25-4 押した瞬間は まだ設定に入らない', $('ovSettings').className, 'ov');
+    eq('T25-5 待つ時間は 1.2秒', pend.length && pend[pend.length - 1].ms, 1200);
+    ok('T25-6 指の長押しで 文字選択・拡大鏡を出さない（既定の動きを止める）', ev.defaultPrevented === true);
+    ok('T25-7 押した手ごたえ（press）を付けない', (' ' + gb.className + ' ').indexOf(' press ') < 0, 'class=' + gb.className);
+    fire('touchend');
+    eq('T25-8 すぐ離すと 待ちを取り消す', live(), 0);
+    runPending();
+    eq('T25-9 短い押しでは 設定に入らない', $('ovSettings').className, 'ov');
+    /* 指をずらす＝取り消し */
+    fire('touchstart'); fire('touchmove'); runPending();
+    eq('T25-10 押したまま ずらすと 入らない', $('ovSettings').className, 'ov');
+    /* 1.2秒 押しつづける＝入る */
+    fire('touchstart'); runPending();
+    eq('T25-11 1.2秒 押しつづけると 設定に入る', $('ovSettings').className, 'ov on');
+    hideOverlays();
+    /* マウス（パソコンで見るとき）も同じ */
+    fire('mousedown'); fire('mouseleave'); runPending();
+    eq('T25-12 マウスで押して外へ出ると 入らない', $('ovSettings').className, 'ov');
+    fire('mousedown'); runPending();
+    eq('T25-13 マウスの長押しでも 設定に入る', $('ovSettings').className, 'ov on');
+    fire('mouseup');
+    hideOverlays();
+    /* 短く2回 押しても 入らない（待ちが重ならない） */
+    pend = [];
+    fire('touchstart'); fire('touchstart'); fire('touchend'); runPending();
+    eq('T25-14 2回 押しても 待ちは重ならず 入らない', $('ovSettings').className, 'ov');
+    /* どうがの画面では出さない（右上の「おしまいに する」と重なるため） */
+    showScreen('scrVideo');
+    eq('T25-15 どうがの画面では おとなのひと を出さない', gb.style.display, 'none');
+    showScreen('scrMain');
+    eq('T25-16 ほかの画面に戻ると また出る', gb.style.display, '');
+  } finally {
+    window.setTimeout = immediate;
+    window.clearTimeout = origClear;
+    hideOverlays();
+  }
+});
+
 /* ---- 結果 ---- */
 window.setTimeout = _setTimeout;
 (function(){

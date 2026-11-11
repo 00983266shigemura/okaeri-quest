@@ -382,9 +382,13 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
 #scrMorningEnd p { font-size:24px; margin:6px 0; }
 
 /* 設定 */
+/* おとなのひと＝長押し（1.2秒）で設定へ。ほかの息子向けアプリと同じ入り方（v40・計算の関門は廃止）。
+   押した手ごたえ（press）は付けない＝子どもが押すボタンではない。長押しで文字選択・拡大鏡が出ないよう止める */
 #btnGear {
-  position:fixed; top:10px; right:10px; z-index:40;
-  border:0; background:transparent; font-size:26px; opacity:0.45; cursor:pointer;
+  position:fixed; top:8px; right:8px; z-index:40;
+  border:1px solid #bbb; border-radius:10px; background:rgba(255,255,255,0.7);
+  color:#666; font-size:13px; padding:5px 9px; opacity:0.6; cursor:pointer;
+  -webkit-touch-callout:none; -webkit-user-select:none; user-select:none;
 }
 .ov-panel {
   max-width:560px; margin:20px auto; background:#fff;
@@ -406,7 +410,6 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
   border:2px solid #CC79A7; color:#CC79A7; background:#fff;
   border-radius:10px; font-size:15px; padding:9px 14px; margin:6px 6px 0 0; cursor:pointer;
 }
-#quizA { width:120px; font-size:24px; text-align:center; padding:8px; border:2px solid #ccc; border-radius:8px; }
 
 /* できた瞬間に浮かび上がって消えることば */
 .floatTx {
@@ -441,7 +444,7 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
 </head>
 <body>
 
-<button id="btnGear">⚙</button>
+<button id="btnGear">おとなのひと（ながおし）</button>
 
 <div class="screen" id="scrMorning">
   <div class="hd">
@@ -638,18 +641,6 @@ body.bigvid .miniBtn { background:#333; color:#eee; border-color:#777; font-size
   </div>
 </div>
 
-<div class="ov" id="ovQuiz">
-  <div class="ov-inner small">
-    <p class="note">おうちのひと よう</p>
-    <p id="quizQ" style="font-size:26px; margin:10px 0;"></p>
-    <input type="number" id="quizA" placeholder="こたえ">
-    <div class="row" style="margin-top:14px;">
-      <button class="bigBtn gray" id="quizCancel">やめる</button>
-      <button class="bigBtn" id="quizOk">OK</button>
-    </div>
-  </div>
-</div>
-
 <div class="ov" id="ovPick">
   <div class="ov-inner">
     <h1>どれを みる？</h1>
@@ -707,7 +698,7 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 39;
+var APP_VERSION = 40;
 
 /* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
    上の APP_VERSION と隣り合っていると、版数を上げたときに
@@ -947,8 +938,7 @@ function bakedForKind(kind){
 
 var state = null;
 var vidBaked = null;
-var quizAnswer = null;
-var quizAfter = null;
+var holdTimer = null;
 
 function $(id){ return document.getElementById(id); }
 
@@ -1775,12 +1765,13 @@ function showScreen(id){
   for (i = 0; i < ids.length; i++) {
     $(ids[i]).className = (ids[i] === id) ? 'screen on' : 'screen';
   }
+  /* どうがの画面では おとなのひと を出さない（右上の「おしまいに する」と重なるため・v40） */
+  $('btnGear').style.display = (id === 'scrVideo') ? 'none' : '';
 }
 function hideOverlays(){
   $('ovBug').className = 'ov';
   $('ovCeleb').className = 'ov';
   $('ovConfirm').className = 'ov';
-  $('ovQuiz').className = 'ov';
   $('ovSettings').className = 'ov';
   $('ovPick').className = 'ov';
 }
@@ -3023,13 +3014,13 @@ function openSettings(){
   $('ovSettings').className = 'ov on';
 }
 /* KANA-CHECK-ON ここまで */
-function openQuiz(after){
-  var a = 2 + Math.floor(Math.random() * 8), b = 2 + Math.floor(Math.random() * 8);
-  quizAnswer = a + b;
-  quizAfter = after;
-  $('quizQ').textContent = a + ' + ' + b + ' = ?';
-  $('quizA').value = '';
-  $('ovQuiz').className = 'ov on';
+/* おとなのひと の長押し（1.2秒・ちえの もり と同じ）。指を離す・ずらすと取り消し */
+function holdStart(){
+  holdEnd();
+  holdTimer = setTimeout(function(){ holdTimer = null; openSettings(); }, 1200);
+}
+function holdEnd(){
+  if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
 }
 
 /* ---------- イベント結線 ---------- */
@@ -3107,17 +3098,16 @@ bindTap($('btnZukanGo'), function(){
 bindTap($('btnZukanW'), function(){ openZukanPeek(); });
 bindTap($('btnZukanN'), function(){ openZukanPeek(); });
 bindTap($('btnBugClose'), function(){ $('ovBug').className = 'ov'; });
-bindTap($('btnGear'), function(){ openQuiz(openSettings); });
-$('quizOk').addEventListener('click', function(){
-  if (parseInt($('quizA').value, 10) === quizAnswer) {
-    $('ovQuiz').className = 'ov';
-    if (quizAfter) quizAfter();
-  } else {
-    $('quizA').value = '';
-    $('quizA').placeholder = 'ちがうよ';
-  }
-}, false);
-$('quizCancel').addEventListener('click', function(){ $('ovQuiz').className = 'ov'; }, false);
+(function(){
+  var gb = $('btnGear');
+  gb.addEventListener('touchstart', function(e){ e.preventDefault(); holdStart(); }, false);
+  gb.addEventListener('touchend', holdEnd, false);
+  gb.addEventListener('touchcancel', holdEnd, false);
+  gb.addEventListener('touchmove', holdEnd, false);
+  gb.addEventListener('mousedown', holdStart, false);
+  gb.addEventListener('mouseup', holdEnd, false);
+  gb.addEventListener('mouseleave', holdEnd, false);
+})();
 /* KANA-CHECK-OFF ここから 設定画面のボタン（おうちのひと用） */
 $('btnCloseSet').addEventListener('click', function(){ $('ovSettings').className = 'ov'; }, false);
 $('btnToggleRest').addEventListener('click', function(){
