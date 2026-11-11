@@ -104,6 +104,9 @@ button { font-family:inherit; }
 .vsRow .card.both { width:96%; }
 /* パパと きょうそう しない クエスト（v33）＝パパの れつを 出さず、そらの札を 左右いっぱいにする */
 .vsRow .card.solo { width:96%; }
+/* 札が9枚以上の画面だけ、行の余白と札の内側を すこし つめる（v39・平日の朝が9枚になった）。
+   8枚までの画面の見た目は変えない。押せる高さは 50px 以上を保つ。 */
+.cards.dense .vsRow .card { margin-top:3px; margin-bottom:3px; padding-top:6px; padding-bottom:6px; }
 /* 名前（そら／パパ）は 絵文字の横へ寄せる。
    たてに1本分の行が浮き、8枚のおはようクエストが1画面に収まる
    （2026-09-16 しげ裁定「推奨で」＝案B。実測はみ出し 173px→0px）。 */
@@ -704,7 +707,7 @@ var LS_KEY = 'okaeriQuest_v1';
      ①端末に保存済みの設定を、このファイルの DEFAULT_SETTINGS で上書きする
      ②端末が古いファイルを持っていたら、新しいものを取り直させる（下の checkUpdate）
    （タスクのチェック状況・終わり時刻の記録・スタンプは上書きされない） */
-var APP_VERSION = 38;
+var APP_VERSION = 39;
 
 /* ここから下の1行（VIDEO_LISTS）は、毎朝GitHubの自動更新が書き換える。
    上の APP_VERSION と隣り合っていると、版数を上げたときに
@@ -775,6 +778,8 @@ var DEFAULT_SETTINGS = {
       {e:'👕', t:'せいふく'},
       {e:'👣', t:'くつした'}
     ]},
+    /* 2026-11-11 しげ指示「朝のクエストに「ぬいだふくをせんたくかごに」を入れる」＝おきがえの すぐあと */
+    {e:'👕', t:'ぬいだ ふくを せんたくかごに'},
     {e:'🍴🍵', t:'カトラリー・すいとうを いれる'},
     /* ふたりで ひとつの札（both）＝おうちのひとが かくもの。
        左右に またがって 出て、押すと そら・パパ 両方の「できた」になる。 */
@@ -796,6 +801,8 @@ var DEFAULT_SETTINGS = {
   morningTasksRest: [
     {e:'💦', t:'かおを あらう'},
     {e:'😁', t:'はを みがく'},
+    /* 2026-11-11 しげ指示（平日の朝と同じ札。園へ持っていく物ではないので休日にも置く） */
+    {e:'👕', t:'ぬいだ ふくを せんたくかごに'},
     {e:'🍚', t:'あさごはんを ぜんぶ たべる'},
     /* どれか ひとつ を えらぶ札（pickOne）。ぜんぶ押す必要はなく、1つ押せば できたになる。
        ふやす・へらすときは、この parts を書き替えるだけでよい。 */
@@ -817,6 +824,8 @@ var DEFAULT_SETTINGS = {
       {e:'🏃', t:'にんジャージ'},
       {e:'🍴', t:'カトラリーぶくろ'}
     ]},
+    /* 2026-11-11 しげ指示「クエスト①に「せいふくをハンガーにかける」を入れる」＝せんたくものの すぐあと */
+    {e:'👔', t:'せいふくを ハンガーに かける'},
     {e:'🍴🍵', t:'カトラリー・すいとうを だす'},
     {e:'🎒', t:'カバンを かたづける', parts:[
       {e:'🎒', t:'リュック'},
@@ -1885,6 +1894,8 @@ function onPartTap(kind, idx, task, j, btn, card){
 function buildCards(containerId, tasks, kind){
   var box = $(containerId), i, row, vs = isVs(kind);
   while (box.firstChild) box.removeChild(box.firstChild);
+  /* 札が9枚以上（v39 の平日の朝）は 行を すこし つめて 1画面に収める（.cards.dense） */
+  box.className = (tasks.length >= 9) ? 'cards dense' : 'cards';
   /* 「パパと競争する？」で いいえ＝れつの見出しも パパの札も 出さない */
   if (vs) box.appendChild(buildVsHead());
   for (i = 0; i < tasks.length; i++) {

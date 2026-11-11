@@ -127,6 +127,8 @@ function tapAllPapa(kind, id){
 function txt(id){ var e = $(id); return (e && e.textContent) || ''; }
 function nth(id, i){ var e = $(id); var c = e && e.childNodes[i]; return (c && c.textContent) || '(なし)'; }
 function nlen(id){ var e = $(id); return e ? e.childNodes.length : -1; }
+/* れんらくちょう（ふたり共通の札）の位置。v39 で朝の札が1枚ふえて 4→5（T24-1 で中身も確かめる） */
+var RENRAKU = 5;
 function headText(id, i){
   var box = $(id), h = box && box.childNodes[0], c = h && h.childNodes[i];
   return (c && c.textContent) || '(なし)';
@@ -144,14 +146,14 @@ step('T1', function(){
   eq('T1-1 れつの見出しは1つ', heads, 1);
   eq('T1-2 見出しの左は そら', headText('morningCards', 0), 'そら');
   eq('T1-3 見出しの右は パパ', headText('morningCards', 1), 'パパ');
-  eq('T1-4 行の数＝札の数（平日の朝は8）', rowsOf('morningCards').length, 8);
+  eq('T1-4 行の数＝札の数（平日の朝は9）', rowsOf('morningCards').length, 9);
   eq('T1-5 ふつうの行はカード2枚', rowLen('morningCards', 0), 2);
-  eq('T1-6 れんらくちょうの行はカード1枚', rowLen('morningCards', 4), 1);
+  eq('T1-6 れんらくちょうの行はカード1枚', rowLen('morningCards', RENRAKU), 1);
   ok('T1-7 れんらくちょうの札に both が付く',
-     cardCls('morningCards', 4, 'sora').indexOf('both') >= 0, cardCls('morningCards', 4, 'sora'));
+     cardCls('morningCards', RENRAKU, 'sora').indexOf('both') >= 0, cardCls('morningCards', RENRAKU, 'sora'));
   eq('T1-8 左の札の名前は そら', cardWho('morningCards', 0, 'sora'), 'そら');
   eq('T1-9 右の札の名前は パパ', cardWho('morningCards', 0, 'papa'), 'パパ');
-  eq('T1-10 共通の札の名前は そらと パパ', cardWho('morningCards', 4, 'sora'), 'そらと パパ');
+  eq('T1-10 共通の札の名前は そらと パパ', cardWho('morningCards', RENRAKU, 'sora'), 'そらと パパ');
 });
 
 /* ============================================================
@@ -159,14 +161,14 @@ step('T1', function(){
    ============================================================ */
 step('T2', function(){
   setDay(false, 'morning');
-  tap('morningCards', 4, 'sora');
-  ok('T2-1 共通の札を押すと そらが できた', state.today.doneMorning[4] === true);
-  ok('T2-2 共通の札を押すと パパも できた', state.today.pMorning[4] === true);
+  tap('morningCards', RENRAKU, 'sora');
+  ok('T2-1 共通の札を押すと そらが できた', state.today.doneMorning[RENRAKU] === true);
+  ok('T2-2 共通の札を押すと パパも できた', state.today.pMorning[RENRAKU] === true);
   eq('T2-3 ほかの札は動かない', !!state.today.pMorning[0], false);
   ANSWER = true;
-  tap('morningCards', 4, 'sora');
-  ok('T2-4 とりけすと そらが もどる', !state.today.doneMorning[4]);
-  ok('T2-5 とりけすと パパも もどる', !state.today.pMorning[4]);
+  tap('morningCards', RENRAKU, 'sora');
+  ok('T2-4 とりけすと そらが もどる', !state.today.doneMorning[RENRAKU]);
+  ok('T2-5 とりけすと パパも もどる', !state.today.pMorning[RENRAKU]);
 });
 
 /* ============================================================
@@ -206,7 +208,7 @@ step('T4a', function(){
   eq('T4-2 パパが先にそろえると パパの かち', winnerOf('morning'), 'papa');
   eq('T4-3 パパが勝っても画面は進まない', state.today.phase, 'morning');
   ok('T4-4 そらはまだ できていない', !allDoneFor('morning', 'sora'));
-  ok('T4-5 共通の札は そらの側も できた', state.today.doneMorning[4] === true);
+  ok('T4-5 共通の札は そらの側も できた', state.today.doneMorning[RENRAKU] === true);
   tapAllSora('morning', 'morningCards');
   eq('T4-6 そらがそろえると 画面が進む', state.today.phase, 'morningEnd');
   eq('T4-7 かちは パパのまま（あとから追い越さない）', winnerOf('morning'), 'papa');
@@ -231,11 +233,11 @@ step('T4c', function(){
 step('T5', function(){
   setDay(false, 'morning');
   eq('T5-1 はじめは 2つの表示', nlen('hdProgM'), 2);
-  ok('T5-2 左は そら 0／8', nth('hdProgM', 0).indexOf('そら 0／8') === 0, nth('hdProgM', 0));
-  ok('T5-3 右は パパ 0／8', nth('hdProgM', 1).indexOf('パパ 0／8') === 0, nth('hdProgM', 1));
+  ok('T5-2 左は そら 0／9', nth('hdProgM', 0).indexOf('そら 0／9') === 0, nth('hdProgM', 0));
+  ok('T5-3 右は パパ 0／9', nth('hdProgM', 1).indexOf('パパ 0／9') === 0, nth('hdProgM', 1));
   tap('morningCards', 0, 'papa');
-  ok('T5-4 パパを1つ押すと パパ 1／8', nth('hdProgM', 1).indexOf('パパ 1／8') === 0, nth('hdProgM', 1));
-  ok('T5-5 そらは 0／8 のまま', nth('hdProgM', 0).indexOf('そら 0／8') === 0, nth('hdProgM', 0));
+  ok('T5-4 パパを1つ押すと パパ 1／9', nth('hdProgM', 1).indexOf('パパ 1／9') === 0, nth('hdProgM', 1));
+  ok('T5-5 そらは 0／9 のまま', nth('hdProgM', 0).indexOf('そら 0／9') === 0, nth('hdProgM', 0));
   tapAllPapa('morning', 'morningCards');
   eq('T5-6 かちが きまると 3つめの行が出る', nlen('hdProgM'), 3);
   eq('T5-7 その行は トロフィーと名前', nth('hdProgM', 2), '🏆 パパの かち！');
@@ -305,12 +307,12 @@ step('T8', function(){
    ============================================================ */
 step('T9a', function(){
   setDay(false, 'morning');
-  eq('T9-1 平日の朝は札8枚', morningTaskList().length, 8);
+  eq('T9-1 平日の朝は札9枚', morningTaskList().length, 9);
   setDay(true, 'morning');
-  eq('T9-2 休日の朝は札4枚', morningTaskList().length, 4);
+  eq('T9-2 休日の朝は札5枚', morningTaskList().length, 5);
   eq('T9-3 休日の朝も2れつ', rowLen('morningCards', 0), 2);
   setDay(false, 'main');
-  eq('T9-4 クエスト①は5枚', mainTaskList().length, 5);
+  eq('T9-4 クエスト①は6枚', mainTaskList().length, 6);
   eq('T9-5 クエスト②は4枚', main2TaskList().length, 4);
   setDay(true, 'main');
   eq('T9-6 休日のクエストは6枚', mainTaskList().length, 6);
@@ -363,7 +365,7 @@ step('T9e', function(){
   ok('T9-16 古い「きょう」にパパの入れ物が足される', !!state.today.pMorning);
   ok('T9-17 古い「きょう」に しょうはいの入れ物が足される', !!state.today.win);
   render();
-  eq('T9-18 描き直しても札は8枚', rowsOf('morningCards').length, 8);
+  eq('T9-18 描き直しても札は9枚', rowsOf('morningCards').length, 9);
 });
 
 
@@ -393,7 +395,7 @@ step('T10b', function(){
   state.today.phase = 'morning';
   render();
   ANSWER = true;
-  tap('morningCards', 4, 'sora');                  /* れんらくちょう＝ふたり共通の札 */
+  tap('morningCards', RENRAKU, 'sora');                  /* れんらくちょう＝ふたり共通の札 */
   ok('T10-8 そらもパパも未完了にもどる',
      !allDoneFor('morning', 'sora') && !allDoneFor('morning', 'papa'));
   ok('T10-9 かちも もどる', winnerOf('morning') === null, 'win=' + winnerOf('morning'));
@@ -403,8 +405,8 @@ step('T10c', function(){
      本物のボタン（設定画面の「きょうの クエストを 切りかえる」）をそのまま押す。 */
   setDay(false, 'main');
   state.today.win = { morning: 'sora', main: 'papa' };
-  state.today.doneMorning = [1, 1, 1, 1, 1, 1, 1, 1];
-  state.today.pMorning = [1, 1, 1, 1, 1, 1, 1, 1];
+  state.today.doneMorning = [1, 1, 1, 1, 1, 1, 1, 1, 1];
+  state.today.pMorning = [1, 1, 1, 1, 1, 1, 1, 1, 1];
   save();
   var _confirm = window.confirm, _alert = window.alert, alerted = false;
   window.confirm = function(){ return true; };
@@ -420,12 +422,12 @@ step('T10c', function(){
 step('T10d', function(){
   /* 指摘3＝版が上がった当日、そらが押していた ふたり共通の札を パパへ写す */
   setDay(false, 'morning');
-  state.today.doneMorning[4] = true;   /* v30の端末＝れんらくちょうだけ済み */
+  state.today.doneMorning[RENRAKU] = true;   /* v30の端末＝れんらくちょうだけ済み */
   state.today.pMorning = [];           /* v30には パパの入れ物が無い */
   delete state.today.win;
   ensureToday();
-  ok('T10-15 ふたり共通の札が パパへ写る', state.today.pMorning[4] === true,
-     'pMorning[4]=' + state.today.pMorning[4]);
+  ok('T10-15 ふたり共通の札が パパへ写る', state.today.pMorning[RENRAKU] === true,
+     'pMorning[RENRAKU]=' + state.today.pMorning[RENRAKU]);
   render();
   tapAllPapa('morning', 'morningCards');
   ok('T10-16 その日も パパは勝てる', allDoneFor('morning', 'papa'));
@@ -516,16 +518,16 @@ step('T13a', function(){
   click($('btnVsNo'));
   ok('T13-1 いいえ が記録される', state.today.vs.morning === false);
   eq('T13-2 れつの見出しは出ない', headCount('morningCards'), 0);
-  eq('T13-3 行の数は8のまま', rowsOf('morningCards').length, 8);
+  eq('T13-3 行の数は9のまま', rowsOf('morningCards').length, 9);
   eq('T13-4 どの行も そらの札1枚', rowLen('morningCards', 0), 1);
   ok('T13-5 札は 左右いっぱい（solo）', cardCls('morningCards', 0, 'sora').indexOf('solo') >= 0, cardCls('morningCards', 0, 'sora'));
   ok('T13-6 れんらくちょうも solo（またがりではない）',
-     cardCls('morningCards', 4, 'sora').indexOf('solo') >= 0 && cardCls('morningCards', 4, 'sora').indexOf('both') < 0,
-     cardCls('morningCards', 4, 'sora'));
+     cardCls('morningCards', RENRAKU, 'sora').indexOf('solo') >= 0 && cardCls('morningCards', RENRAKU, 'sora').indexOf('both') < 0,
+     cardCls('morningCards', RENRAKU, 'sora'));
   var c0 = cardAt('morningCards', 0, 'sora');
   eq('T13-7 札に名前を出さない（1つめは絵文字）', c0 && c0.childNodes[0].className, 'c-emoji');
   eq('T13-8 とくてん表は そらだけ', nlen('hdProgM'), 1);
-  ok('T13-9 とくてん表の文字', nth('hdProgM', 0).indexOf('そら 0／8') === 0, nth('hdProgM', 0));
+  ok('T13-9 とくてん表の文字', nth('hdProgM', 0).indexOf('そら 0／9') === 0, nth('hdProgM', 0));
   tap('morningCards', 0, 'sora');
   ok('T13-10 押したあとも solo のまま', cardCls('morningCards', 0, 'sora').indexOf('solo') >= 0 &&
      cardCls('morningCards', 0, 'sora').indexOf('done') >= 0, cardCls('morningCards', 0, 'sora'));
@@ -571,7 +573,7 @@ step('T14a', function(){
   eq('T14-7 クエスト①へ進む', state.today.phase, 'main');
   ok('T14-8 クエスト①の前に きょうそうの確認', isOn('scrVsAsk'));
   click($('btnVsYes'));
-  eq('T14-9 クエスト①は5枚のまま', mainTaskList().length, 5);
+  eq('T14-9 クエスト①は6枚のまま', mainTaskList().length, 6);
   eq('T14-10 クエスト②は2枚', main2TaskList().length, 2);
   eq('T14-11 1枚目は おふろ', main2TaskList()[0] && main2TaskList()[0].t, 'おふろに はいる');
   eq('T14-12 2枚目は ぷちゲーム', main2TaskList()[1] && main2TaskList()[1].t, 'ぷちゲーム');
@@ -680,7 +682,7 @@ step('T18a', function(){
 step('T18b', function(){
   setDay(false, 'main');
   state.today.machiko = true;
-  state.today.doneMorning = [1, 1, 1, 1, 1, 1, 1, 1];
+  state.today.doneMorning = [1, 1, 1, 1, 1, 1, 1, 1, 1];
   state.today.win = { morning: 'sora' };
   var _confirm = window.confirm, _alert = window.alert, alerted = 0;
   window.confirm = function(){ return true; };
@@ -882,6 +884,44 @@ step('T22', function(){
   eq('T22-24 まちこせんせいの ひは ワークの札なし', workIdx(main2TaskList()), -1);
   eq('T22-25 まちこせんせいの ひは ふえない', tasksOf('after').length, base);
   ANSWER = true;
+});
+
+/* ============================================================
+   T24 v39（2026-11-11 しげ指示）
+   ①クエスト①に「せいふくを ハンガーに かける」
+   ②朝のクエスト（平日・休日）に「ぬいだ ふくを せんたくかごに」
+   ============================================================ */
+step('T24', function(){
+  var mt = DEFAULT_SETTINGS.morningTasks, mr = DEFAULT_SETTINGS.morningTasksRest,
+      m1 = DEFAULT_SETTINGS.mainTasks, ho = DEFAULT_SETTINGS.holidayTasks, i, n;
+  eq('T24-1 RENRAKU の位置は れんらくちょう', mt[RENRAKU] && mt[RENRAKU].t, 'れんらくちょうを かく');
+  eq('T24-2 平日の朝 4枚目は ぬいだ ふく', mt[3] && mt[3].t, 'ぬいだ ふくを せんたくかごに');
+  eq('T24-3 その前は おきがえ', mt[2] && mt[2].t, 'おきがえ');
+  eq('T24-4 休日の朝 3枚目は ぬいだ ふく', mr[2] && mr[2].t, 'ぬいだ ふくを せんたくかごに');
+  eq('T24-5 クエスト① 4枚目は ハンガー', m1[3] && m1[3].t, 'せいふくを ハンガーに かける');
+  eq('T24-6 その前は せんたくもの', m1[2] && m1[2].t, 'せんたくものを だす');
+  n = 0;
+  for (i = 0; i < ho.length; i++) { if (ho[i].t === 'せいふくを ハンガーに かける') n++; }
+  eq('T24-7 休日のクエストには ハンガーを足さない（クエスト①だけの指示）', n, 0);
+  /* 画面に出るか（平日の朝・休日の朝・クエスト①） */
+  setDay(false, 'morning');
+  ok('T24-8 平日の朝の画面に ぬいだ ふく', txt('morningCards').indexOf('ぬいだ ふくを せんたくかごに') >= 0);
+  eq('T24-14 9枚の平日の朝は 行を つめる', $('morningCards').className, 'cards dense');
+  setDay(true, 'morning');
+  ok('T24-9 休日の朝の画面に ぬいだ ふく', txt('morningCards').indexOf('ぬいだ ふくを せんたくかごに') >= 0);
+  eq('T24-15 5枚の休日の朝は つめない', $('morningCards').className, 'cards');
+  setDay(false, 'main');
+  ok('T24-10 クエスト①の画面に ハンガー', txt('mainCards').indexOf('せいふくを ハンガーに かける') >= 0);
+  /* 新しい札も ふつうに押せて、ぜんぶ押すと先へ進む */
+  setDay(false, 'morning', 'solo');
+  tap('morningCards', 3, 'sora');
+  ok('T24-11 ぬいだ ふく を押すと できた', state.today.doneMorning[3] === true);
+  setDay(false, 'main', 'solo');
+  tap('mainCards', 3, 'sora');
+  ok('T24-12 ハンガー を押すと できた', state.today.doneMain[3] === true, 'doneMain=' + JSON.stringify(state.today.doneMain));
+  ANSWER = true;
+  tapAllSora('main', 'mainCards');
+  eq('T24-13 クエスト①を ぜんぶ押すと クエスト②へ', state.today.phase, 'main2');
 });
 
 /* ---- 結果 ---- */
